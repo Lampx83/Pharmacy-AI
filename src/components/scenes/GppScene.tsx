@@ -38,7 +38,7 @@ const ORIGIN_X = -((COLS - 1) * CELL_W) / 2;
 const ORIGIN_Y = 1.05;
 
 /* Khay đựng thuốc trên quầy cho khách – 3×2 ô */
-const PICK_TRAY_BASE: [number, number, number] = [-0.55, -0.02, 1.85];
+const PICK_TRAY_BASE: [number, number, number] = [-0.55, -0.02, 2.50];
 const PICK_TRAY_DX = 0.55;
 const PICK_TRAY_DZ = 0.32;
 function pickSlotPos(idx: number): [number, number, number] {
@@ -721,25 +721,27 @@ function SlidingTracks({ cabinetWidth, cy, cabinetHeight }: { cabinetWidth: numb
 }
 
 /* ===================== Quầy + mặt đá ===================== */
+/* Quầy đã được đẩy ra xa tủ (z=2.20) để dược sĩ có chỗ đứng phía sau */
+const COUNTER_Z = 2.20;
 function Counter() {
   return (
     <group>
       {/* thân quầy gỗ óc chó */}
-      <mesh position={[0, -0.55, 1.55]} castShadow receiveShadow>
+      <mesh position={[0, -0.55, COUNTER_Z]} castShadow receiveShadow>
         <boxGeometry args={[5.4, 0.9, 1.2]} />
         <meshStandardMaterial color="#7c5234" roughness={0.7} />
       </mesh>
       {/* viền chỉ vàng đồng */}
-      <mesh position={[0, -0.1, 2.16]}>
+      <mesh position={[0, -0.1, COUNTER_Z + 0.61]}>
         <boxGeometry args={[5.42, 0.02, 0.02]} />
         <meshStandardMaterial color="#d4a373" metalness={0.6} roughness={0.3} />
       </mesh>
-      <mesh position={[0, -0.99, 2.16]}>
+      <mesh position={[0, -0.99, COUNTER_Z + 0.61]}>
         <boxGeometry args={[5.42, 0.02, 0.02]} />
         <meshStandardMaterial color="#d4a373" metalness={0.6} roughness={0.3} />
       </mesh>
       {/* mặt đá hoa cương */}
-      <mesh position={[0, -0.08, 1.55]} castShadow receiveShadow>
+      <mesh position={[0, -0.08, COUNTER_Z]} castShadow receiveShadow>
         <boxGeometry args={[5.5, 0.06, 1.3]} />
         <meshPhysicalMaterial
           color="#f8fafc"
@@ -750,7 +752,7 @@ function Counter() {
         />
       </mesh>
       {/* gờ trước mặt đá */}
-      <mesh position={[0, -0.11, 2.2]}>
+      <mesh position={[0, -0.11, COUNTER_Z + 0.65]}>
         <boxGeometry args={[5.5, 0.04, 0.04]} />
         <meshStandardMaterial color="#e2e8f0" roughness={0.3} />
       </mesh>
@@ -758,93 +760,143 @@ function Counter() {
   );
 }
 
-/* ===================== Máy POS ===================== */
+/* ===================== Máy POS – DUAL SCREEN ===================== */
+/* 1 màn HÌNH CHÍNH quay vào trong (về phía dược sĩ, -z)
+   1 màn HÌNH KHÁCH (CFD) nhỏ hơn quay ra ngoài (+z) hiển thị tổng tiền */
 function PosComputer({ onClick }: { onClick: () => void }) {
-  const base: [number, number, number] = [1.95, -0.05, 1.45];
+  const base: [number, number, number] = [1.95, -0.05, COUNTER_Z - 0.10];
   return (
     <group position={base}>
-      {/* đế màn hình */}
+      {/* đế chung */}
       <mesh position={[0, 0.04, 0]} castShadow>
-        <boxGeometry args={[0.35, 0.02, 0.22]} />
+        <boxGeometry args={[0.46, 0.02, 0.34]} />
         <meshStandardMaterial color="#0f172a" metalness={0.4} roughness={0.4} />
       </mesh>
-      <mesh position={[0, 0.14, 0]} castShadow>
-        <boxGeometry args={[0.05, 0.22, 0.05]} />
+      {/* trụ chung */}
+      <mesh position={[0, 0.16, 0]} castShadow>
+        <boxGeometry args={[0.06, 0.26, 0.06]} />
         <meshStandardMaterial color="#0f172a" metalness={0.4} roughness={0.4} />
       </mesh>
-      {/* màn hình khung */}
-      <mesh position={[0, 0.46, 0]} castShadow>
-        <boxGeometry args={[0.9, 0.56, 0.04]} />
+
+      {/* === KHUNG MÀN HÌNH 2 MẶT === */}
+      <mesh position={[0, 0.48, 0]} castShadow>
+        <boxGeometry args={[0.95, 0.6, 0.06]} />
         <meshStandardMaterial color="#0a0f1c" metalness={0.6} roughness={0.4} />
       </mesh>
-      {/* màn hình – clickable */}
-      <mesh position={[0, 0.46, 0.022]} onClick={onClick}>
-        <planeGeometry args={[0.84, 0.5]} />
-        <meshStandardMaterial color="#0b1220" emissive="#082f49" emissiveIntensity={0.55} />
+
+      {/* --- MÀN HÌNH CHÍNH cho DƯỢC SĨ: nằm mặt -z, rotation Y=π --- */}
+      <group position={[0, 0.48, -0.032]} rotation={[0, Math.PI, 0]}>
+        {/* màn hình – click mở POS */}
+        <mesh position={[0, 0, 0.001]} onClick={onClick}>
+          <planeGeometry args={[0.88, 0.54]} />
+          <meshStandardMaterial color="#0b1220" emissive="#082f49" emissiveIntensity={0.6} />
+        </mesh>
+        {/* thanh tiêu đề */}
+        <mesh position={[0, 0.23, 0.002]}>
+          <planeGeometry args={[0.88, 0.06]} />
+          <meshStandardMaterial color="#0d9488" />
+        </mesh>
+        <Text position={[-0.4, 0.23, 0.003]} fontSize={0.03} color="#ffffff" anchorX="left">
+          ★ Pharma-POS v1.0 — Màn dược sĩ
+        </Text>
+        <Text position={[0.4, 0.23, 0.003]} fontSize={0.026} color="#a7f3d0" anchorX="right">
+          ● online
+        </Text>
+        <Text position={[0, 0.13, 0.003]} fontSize={0.032} color="#e2e8f0" anchorX="center">
+          Hoá đơn #20251120-007
+        </Text>
+        <mesh position={[0, 0.06, 0.003]}>
+          <planeGeometry args={[0.8, 0.004]} />
+          <meshStandardMaterial color="#334155" />
+        </mesh>
+        <Text position={[-0.4, 0.01, 0.003]} fontSize={0.026} color="#94a3b8" anchorX="left">
+          Paracetamol 500mg × 1
+        </Text>
+        <Text position={[0.4, 0.01, 0.003]} fontSize={0.026} color="#e2e8f0" anchorX="right">
+          18.000
+        </Text>
+        <Text position={[-0.4, -0.04, 0.003]} fontSize={0.026} color="#94a3b8" anchorX="left">
+          Loratadin 10mg × 1
+        </Text>
+        <Text position={[0.4, -0.04, 0.003]} fontSize={0.026} color="#e2e8f0" anchorX="right">
+          28.000
+        </Text>
+        <Text position={[-0.4, -0.11, 0.003]} fontSize={0.024} color="#64748b" anchorX="left">
+          Tạm tính
+        </Text>
+        <Text position={[0.4, -0.11, 0.003]} fontSize={0.024} color="#cbd5e1" anchorX="right">
+          46.000
+        </Text>
+        <Text position={[0, -0.20, 0.003]} fontSize={0.056} color="#22c55e" anchorX="center">
+          🛒 NHẤN ĐỂ MỞ POS
+        </Text>
+      </group>
+
+      {/* --- MÀN HÌNH PHỤ cho KHÁCH (CFD): nằm mặt +z, nhỏ hơn --- */}
+      <group position={[0, 0.42, 0.032]}>
+        <mesh position={[0, 0, 0.001]} onClick={onClick}>
+          <planeGeometry args={[0.5, 0.32]} />
+          <meshStandardMaterial color="#0c4a6e" emissive="#0e7490" emissiveIntensity={0.45} />
+        </mesh>
+        <mesh position={[0, 0.13, 0.002]}>
+          <planeGeometry args={[0.5, 0.04]} />
+          <meshStandardMaterial color="#0e7490" />
+        </mesh>
+        <Text position={[0, 0.13, 0.003]} fontSize={0.022} color="#ecfeff" anchorX="center">
+          Pharma-POS · KHÁCH HÀNG
+        </Text>
+        <Text position={[0, 0.05, 0.003]} fontSize={0.027} color="#bae6fd" anchorX="center">
+          TỔNG TIỀN CỦA QUÝ KHÁCH
+        </Text>
+        <Text position={[0, -0.04, 0.003]} fontSize={0.075} color="#fef3c7" anchorX="center">
+          46.000 ₫
+        </Text>
+        <Text position={[0, -0.12, 0.003]} fontSize={0.018} color="#cbd5e1" anchorX="center">
+          (đã gồm 8% VAT) — Cảm ơn quý khách!
+        </Text>
+      </group>
+
+      {/* Khung viền bên ngoài mặt khách – cho ra dáng monitor riêng */}
+      <mesh position={[0, 0.42, 0.034]}>
+        <planeGeometry args={[0.54, 0.36]} />
+        <meshStandardMaterial color="#0a0f1c" />
       </mesh>
-      {/* thanh tiêu đề */}
-      <mesh position={[0, 0.68, 0.023]}>
-        <planeGeometry args={[0.84, 0.06]} />
-        <meshStandardMaterial color="#0d9488" />
-      </mesh>
-      <Text position={[-0.38, 0.68, 0.024]} fontSize={0.03} color="#ffffff" anchorX="left">
-        ★ Pharma-POS v1.0
-      </Text>
-      <Text position={[0.38, 0.68, 0.024]} fontSize={0.026} color="#a7f3d0" anchorX="right">
-        ● online
-      </Text>
-      {/* nội dung giả lập màn hình */}
-      <Text position={[0, 0.55, 0.024]} fontSize={0.034} color="#e2e8f0" anchorX="center">
-        Hoá đơn #20251120-007
-      </Text>
-      <mesh position={[0, 0.46, 0.024]}>
-        <planeGeometry args={[0.78, 0.005]} />
-        <meshStandardMaterial color="#334155" />
-      </mesh>
-      <Text position={[-0.38, 0.41, 0.024]} fontSize={0.026} color="#94a3b8" anchorX="left">
-        Paracetamol 500mg × 1
-      </Text>
-      <Text position={[0.38, 0.41, 0.024]} fontSize={0.026} color="#e2e8f0" anchorX="right">
-        18.000
-      </Text>
-      <Text position={[-0.38, 0.36, 0.024]} fontSize={0.026} color="#94a3b8" anchorX="left">
-        Loratadin 10mg × 1
-      </Text>
-      <Text position={[0.38, 0.36, 0.024]} fontSize={0.026} color="#e2e8f0" anchorX="right">
-        28.000
-      </Text>
-      <Text position={[0, 0.24, 0.024]} fontSize={0.06} color="#22c55e" anchorX="center">
-        🛒 NHẤN ĐỂ MỞ
-      </Text>
-      {/* bàn phím */}
-      <mesh position={[0, 0.005, 0.32]} rotation={[-0.1, 0, 0]} castShadow>
-        <boxGeometry args={[0.42, 0.02, 0.16]} />
+
+      {/* bàn phím (đặt trước mặt dược sĩ, phía -z) */}
+      <mesh position={[0, 0.005, -0.27]} rotation={[0.1, 0, 0]} castShadow>
+        <boxGeometry args={[0.44, 0.02, 0.16]} />
         <meshStandardMaterial color="#1f2937" roughness={0.6} />
       </mesh>
-      {/* chuột */}
-      <mesh position={[0.3, 0.01, 0.32]} castShadow>
+      {/* hàng phím trắng */}
+      <mesh position={[0, 0.016, -0.27]} rotation={[0.1, 0, 0]}>
+        <boxGeometry args={[0.40, 0.005, 0.13]} />
+        <meshStandardMaterial color="#334155" />
+      </mesh>
+      {/* chuột (về phía dược sĩ, -z) */}
+      <mesh position={[0.3, 0.01, -0.27]} castShadow>
         <boxGeometry args={[0.08, 0.025, 0.12]} />
         <meshStandardMaterial color="#1f2937" roughness={0.6} />
       </mesh>
-      {/* máy in nhãn nhiệt */}
-      <group position={[-0.7, 0.02, 0]}>
+
+      {/* máy in nhãn nhiệt – để cạnh dược sĩ (-z), không lấn sang khách */}
+      <group position={[-0.7, 0.02, -0.12]}>
         <mesh position={[0, 0.1, 0]} castShadow>
           <boxGeometry args={[0.3, 0.2, 0.24]} />
           <meshStandardMaterial color="#1f2937" roughness={0.5} />
         </mesh>
-        <mesh position={[0, 0.22, 0.06]}>
+        <mesh position={[0, 0.22, -0.06]}>
           <boxGeometry args={[0.24, 0.02, 0.12]} />
           <meshStandardMaterial color="#fafafa" />
         </mesh>
-        <mesh position={[0, 0.205, 0.121]}>
+        <mesh position={[0, 0.205, -0.121]}>
           <boxGeometry args={[0.22, 0.005, 0.005]} />
           <meshStandardMaterial color="#475569" />
         </mesh>
-        <mesh position={[0, 0.05, 0.121]}>
+        <mesh position={[0, 0.05, -0.121]}>
           <circleGeometry args={[0.012, 24]} />
           <meshStandardMaterial color="#22c55e" emissive="#16a34a" emissiveIntensity={0.8} />
         </mesh>
-        <Text position={[0.03, 0.05, 0.121]} fontSize={0.022} color="#a7f3d0" anchorX="left">
+        <Text position={[0.03, 0.05, -0.121]} rotation={[0, Math.PI, 0]} fontSize={0.022} color="#a7f3d0" anchorX="left">
           PRINTER
         </Text>
       </group>
@@ -854,7 +906,7 @@ function PosComputer({ onClick }: { onClick: () => void }) {
 
 /* ===================== Khay dụng cụ ===================== */
 function ToolTray({ onClick }: { onClick: () => void }) {
-  const base: [number, number, number] = [-1.95, 0.0, 1.45];
+  const base: [number, number, number] = [-1.95, 0.0, COUNTER_Z - 0.10];
   return (
     <group position={base} onClick={onClick}>
       {/* khay nền inox */}
@@ -1641,10 +1693,11 @@ function Person({
         {label}
       </Text>
 
-      {/* === BUBBLE THOẠI – PHONG CÁCH TRUYỆN TRANH === */}
+      {/* === BUBBLE THOẠI – PHONG CÁCH TRUYỆN TRANH ===
+          Đặt cao hơn đầu (y=2.6) + tail dài 56px → tail tip luôn cách đầu rõ */}
       {speech && (
         <Html
-          position={[0, 2.0, 0]}
+          position={[0, 2.6, 0]}
           center
           distanceFactor={5}
           zIndexRange={[20, 0]}
@@ -1658,7 +1711,9 @@ function Person({
   );
 }
 
-/* Bubble truyện tranh: viền đen dày, font comic, đổ bóng hard, đuôi 2 lớp */
+/* Bubble truyện tranh: viền đen dày, font comic, đổ bóng hard, đuôi 2 lớp
+   - Rộng ngang (maxWidth 380) → ít wrap, hình chữ nhật bầu kiểu game
+   - Đuôi dài + có khoảng cách lớn dưới bubble → luôn cách đầu nhân vật */
 function ComicBubble({ text, fill, accent }: { text: string; fill: string; accent: string }) {
   return (
     <div
@@ -1666,63 +1721,66 @@ function ComicBubble({ text, fill, accent }: { text: string; fill: string; accen
         position: "relative",
         background: fill,
         border: "3px solid #0f172a",
-        borderRadius: "26px / 32px",
-        padding: "12px 18px",
+        borderRadius: "32px / 38px",
+        padding: "12px 22px 14px",
         fontFamily:
           "'Bangers','Comic Sans MS','Marker Felt','Chalkboard SE',cursive,sans-serif",
         fontWeight: 700,
-        fontSize: 14,
-        lineHeight: 1.3,
+        fontSize: 15,
+        lineHeight: 1.32,
         color: "#0f172a",
-        maxWidth: 220,
-        minWidth: 80,
+        maxWidth: 380,
+        minWidth: 160,
+        width: "max-content",
         textAlign: "center",
         letterSpacing: 0.3,
-        boxShadow: "5px 5px 0 #0f172a, 5px 5px 0 1px rgba(0,0,0,0)",
+        boxShadow: "6px 6px 0 #0f172a",
         transform: "rotate(-1.5deg)",
-        userSelect: "none"
+        userSelect: "none",
+        marginBottom: 56 /* đẩy phần thân lên, tail có khoảng trống bên dưới */
       }}
     >
-      {/* dải accent nhỏ trên cùng */}
+      {/* dải accent ở mép trên */}
       <div
         style={{
           position: "absolute",
           top: -3,
-          left: 14,
-          right: 14,
-          height: 4,
+          left: 18,
+          right: 18,
+          height: 5,
           background: accent,
           borderRadius: 4,
           opacity: 0.9
         }}
       />
       {text}
-      {/* đuôi đen – lớp ngoài */}
+      {/* đuôi đen – lớp ngoài (dài 44px, đặt cách dưới 8px → tail tip cách body bubble 52px) */}
       <div
         style={{
           position: "absolute",
-          bottom: -22,
+          bottom: -52,
           left: "50%",
           transform: "translateX(-50%) rotate(-6deg)",
           width: 0,
           height: 0,
-          borderLeft: "14px solid transparent",
-          borderRight: "10px solid transparent",
-          borderTop: "24px solid #0f172a"
+          borderLeft: "16px solid transparent",
+          borderRight: "11px solid transparent",
+          borderTop: "44px solid #0f172a",
+          filter: "drop-shadow(3px 3px 0 #0f172a)"
         }}
       />
-      {/* đuôi trắng – lớp trong, lệch chút để hở viền */}
+      {/* đuôi màu – lớp trong (lệch để lộ viền đen) */}
       <div
         style={{
           position: "absolute",
-          bottom: -16,
+          bottom: -45,
           left: "50%",
           transform: "translateX(-50%) rotate(-6deg)",
           width: 0,
           height: 0,
-          borderLeft: "10px solid transparent",
-          borderRight: "7px solid transparent",
-          borderTop: `18px solid ${fill}`
+          borderLeft: "12px solid transparent",
+          borderRight: "8px solid transparent",
+          borderTop: `36px solid ${fill}`
         }}
       />
     </div>
@@ -1829,7 +1887,7 @@ export default function GppScene({
         <PickTray pickedCount={picked.length} />
         <ToolTray onClick={onOpenLabelEditor} />
         <PosComputer onClick={onOpenPos} />
-        <HandSanitizer position={[2.7, -0.05, 1.95]} />
+        <HandSanitizer position={[2.7, -0.05, 2.60]} />
 
         {/* Các hộp thuốc – nằm ở world coords, có thể cầm/bay ra khay */}
         {DRUGS.map((drug, drugIdx) => {
@@ -1874,7 +1932,7 @@ export default function GppScene({
 
         {/* Bệnh nhân (đứng trước quầy, nữ tóc dài, áo hồng) */}
         <Person
-          position={[-1.4, -1.0, 3.2]}
+          position={[-1.4, -1.0, 3.85]}
           rotationY={-0.25}
           shirtColor="#f472b6"
           pantsColor="#1e3a8a"
@@ -1913,10 +1971,10 @@ export default function GppScene({
         <VaccineFridge position={[5.5, -1.0, -0.5]} />
         {/* Cây xanh trang trí */}
         <Plant position={[-5.8, -1.0, 0.5]} />
-        <Plant position={[5.0, -1.0, 1.8]} />
+        <Plant position={[5.0, -1.0, 2.45]} />
         {/* Ghế chờ khách hàng */}
-        <WaitingChair position={[-3.0, -1.0, 3.8]} />
-        <WaitingChair position={[3.0, -1.0, 3.8]} />
+        <WaitingChair position={[-3.0, -1.0, 4.45]} />
+        <WaitingChair position={[3.0, -1.0, 4.45]} />
         {/* Điều hoà */}
         <ACUnit position={[0, 4.9, -1.3]} />
 
