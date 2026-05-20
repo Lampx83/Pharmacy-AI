@@ -46,6 +46,9 @@ export default function SimulationClient({ moduleId }: { moduleId: ModuleId }) {
   const [presented, setPresented] = useState<number[]>([]);
   const [signed, setSigned] = useState(false);
 
+  // Layout
+  const [panelOpen, setPanelOpen] = useState(true);
+
   useEffect(() => {
     (async () => {
       const r = await fetch("/api/session", {
@@ -107,6 +110,7 @@ export default function SimulationClient({ moduleId }: { moduleId: ModuleId }) {
   return (
     <div
       className="app-shell"
+      style={{ gridTemplateColumns: panelOpen ? "1fr 340px" : "1fr 0px" }}
       onMouseMove={(e) => {
         if (pendingLabel) setMouse({ x: e.clientX, y: e.clientY });
       }}
@@ -115,6 +119,26 @@ export default function SimulationClient({ moduleId }: { moduleId: ModuleId }) {
       }}
       tabIndex={0}
     >
+      {/* Nút thu gọn / mở rộng panel — gắn nổi trên góc phải scene */}
+      <button
+        onClick={() => setPanelOpen((o) => !o)}
+        title={panelOpen ? "Thu gọn panel" : "Mở panel"}
+        style={{
+          position: "fixed",
+          top: 14,
+          right: 14,
+          zIndex: 100,
+          padding: "6px 12px",
+          fontSize: 13,
+          fontWeight: 600,
+          background: "#0f766e",
+          borderColor: "#14b8a6",
+          color: "#ecfeff"
+        }}
+      >
+        {panelOpen ? "→ Thu gọn" : "← Mở panel"}
+      </button>
+
       <div className="scene">
         {moduleId === "gpp" && (
           <GppScene
@@ -249,7 +273,7 @@ export default function SimulationClient({ moduleId }: { moduleId: ModuleId }) {
         )}
       </div>
 
-      <div className="sidepanel">
+      <div className="sidepanel" style={{ display: panelOpen ? "flex" : "none", fontSize: 12 }}>
         <div className="card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h1>{scenario.title}</h1>
