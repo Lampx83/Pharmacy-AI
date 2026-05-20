@@ -174,6 +174,7 @@ Output mong đợi:
 
 | Triệu chứng | Khả năng cao | Cách xử lý |
 |---|---|---|
+| `pull access denied for pharmacy-ai, repository does not exist or may require 'docker login'` | Compose có top-level `image: pharmacy-ai:latest`, Portainer chạy `docker compose pull` trước khi build → tìm registry không thấy | Đảm bảo `docker-compose.yml` KHÔNG có dòng `image: pharmacy-ai:latest` ở top-level. Tag để vào `build.tags:` (đã có trong file). Sau đó Portainer → Stack → **Pull and redeploy** (compose pull sẽ skip service vì không có `image:`) |
 | `unhealthy` trong Portainer | App chưa lên kịp | Tăng `start_period` lên `40s` trong compose |
 | 502 từ Traefik | Container chưa join network `web` | Bỏ comment `networks: [web]` và đảm bảo network external đã tồn tại |
 | `npm ci` fail khi build | Lệch `package-lock.json` | Trên máy dev chạy `npm install` rồi commit lại `package-lock.json` |

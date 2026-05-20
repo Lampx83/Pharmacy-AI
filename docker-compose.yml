@@ -1,11 +1,17 @@
 # docker-compose.yml — dùng cho Portainer Stack
 #
-# Cách 1 (build trên server): để nguyên `build: .` bên dưới, Portainer sẽ build
-# image trực tiếp trên server từ source code (cần upload source / git pull về
-# /opt/pharmacy-ai trước, hoặc dùng Portainer "Repository" để Portainer tự clone).
+# Cách 1 (BUILD trên server — mặc định, đang bật):
+#   Để nguyên block `build:` bên dưới. Portainer sẽ build image trực tiếp
+#   trên server từ source (Repository deploy / SCP / Web editor đều OK).
+#   QUAN TRỌNG: không khai báo `image:` ở top-level! Nếu khai báo và image
+#   không tồn tại trên registry, Portainer chạy `docker compose pull` trước
+#   khi build sẽ báo:
+#       "pull access denied for pharmacy-ai, repository does not exist"
+#   Dùng `build.tags` để vẫn gắn tag `pharmacy-ai:latest` sau khi build mà
+#   không trigger pull.
 #
-# Cách 2 (pull từ registry): comment block `build` và bỏ comment dòng `image:`
-# trỏ tới image bạn đã đẩy lên Docker Hub / GitHub Container Registry.
+# Cách 2 (PULL từ registry — khi đã đẩy image lên Docker Hub / GHCR):
+#   Comment toàn bộ block `build:` và bỏ comment dòng `image: ghcr.io/...`.
 
 services:
   pharmacy-ai:
@@ -13,8 +19,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      tags:
+        - pharmacy-ai:latest
     # image: ghcr.io/<your-org>/pharmacy-ai:latest   # nếu kéo từ registry
-    image: pharmacy-ai:latest
     restart: unless-stopped
     ports:
       # Host:Container — truy cập FE qua http://<server-ip>:8040
