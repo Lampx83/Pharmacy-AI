@@ -1320,8 +1320,10 @@ function Person({
   labelColor = "#0f172a",
   speech,
   bubbleColor = "#ffffff",
-  bubbleBorder = "#0f766e",
+  bubbleAccent = "#fbbf24",
   hasCoat = false,
+  ponytail = false,
+  glasses = false,
   bobSpeed = 1.2,
   bobAmount = 0.015
 }: {
@@ -1335,184 +1337,395 @@ function Person({
   labelColor?: string;
   speech?: string;
   bubbleColor?: string;
-  bubbleBorder?: string;
+  bubbleAccent?: string;
   hasCoat?: boolean;
+  ponytail?: boolean;
+  glasses?: boolean;
   bobSpeed?: number;
   bobAmount?: number;
 }) {
   const ref = useRef<THREE.Group>(null);
+  const headRef = useRef<THREE.Group>(null);
   useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
     if (ref.current) {
-      ref.current.position.y = position[1] + Math.sin(clock.elapsedTime * bobSpeed) * bobAmount;
+      ref.current.position.y = position[1] + Math.sin(t * bobSpeed) * bobAmount;
+    }
+    // đầu lắc nhẹ
+    if (headRef.current) {
+      headRef.current.rotation.y = Math.sin(t * 0.7) * 0.08;
+      headRef.current.rotation.z = Math.sin(t * 0.5) * 0.02;
     }
   });
 
+  const skinDark = "#d97706"; // bóng da
+  const lipColor = "#be185d";
+
   return (
-    <group ref={ref} position={position} rotation={[0, rotationY, 0]} scale={1.15}>
-      {/* chân trái */}
-      <mesh position={[-0.08, 0.32, 0]} castShadow raycast={NULL_RAYCAST as any}>
-        <cylinderGeometry args={[0.06, 0.06, 0.64, 14]} />
+    <group ref={ref} position={position} rotation={[0, rotationY, 0]} scale={1.18}>
+      {/* === CHÂN === */}
+      <mesh position={[-0.085, 0.35, 0]} castShadow raycast={NULL_RAYCAST as any}>
+        <cylinderGeometry args={[0.062, 0.055, 0.7, 14]} />
         <meshStandardMaterial color={pantsColor} roughness={0.85} />
       </mesh>
-      {/* chân phải */}
-      <mesh position={[0.08, 0.32, 0]} castShadow raycast={NULL_RAYCAST as any}>
-        <cylinderGeometry args={[0.06, 0.06, 0.64, 14]} />
+      <mesh position={[0.085, 0.35, 0]} castShadow raycast={NULL_RAYCAST as any}>
+        <cylinderGeometry args={[0.062, 0.055, 0.7, 14]} />
         <meshStandardMaterial color={pantsColor} roughness={0.85} />
       </mesh>
-      {/* giày */}
-      <mesh position={[-0.08, 0.025, 0.03]} castShadow raycast={NULL_RAYCAST as any}>
-        <boxGeometry args={[0.11, 0.05, 0.18]} />
-        <meshStandardMaterial color="#1f2937" roughness={0.7} />
+      {/* giày da */}
+      <mesh position={[-0.085, 0.025, 0.04]} castShadow raycast={NULL_RAYCAST as any}>
+        <boxGeometry args={[0.12, 0.055, 0.22]} />
+        <meshStandardMaterial color="#1c1917" roughness={0.45} metalness={0.15} />
       </mesh>
-      <mesh position={[0.08, 0.025, 0.03]} castShadow raycast={NULL_RAYCAST as any}>
-        <boxGeometry args={[0.11, 0.05, 0.18]} />
-        <meshStandardMaterial color="#1f2937" roughness={0.7} />
+      <mesh position={[0.085, 0.025, 0.04]} castShadow raycast={NULL_RAYCAST as any}>
+        <boxGeometry args={[0.12, 0.055, 0.22]} />
+        <meshStandardMaterial color="#1c1917" roughness={0.45} metalness={0.15} />
       </mesh>
-      {/* thân áo */}
-      <mesh position={[0, 0.9, 0]} castShadow raycast={NULL_RAYCAST as any}>
-        <cylinderGeometry args={[0.18, 0.16, 0.55, 18]} />
-        <meshStandardMaterial color={shirtColor} roughness={0.75} />
+
+      {/* === THÂN ÁO === (capsule cho mềm hơn) */}
+      <mesh position={[0, 0.95, 0]} castShadow raycast={NULL_RAYCAST as any}>
+        <capsuleGeometry args={[0.19, 0.4, 10, 18]} />
+        <meshStandardMaterial color={shirtColor} roughness={0.78} />
       </mesh>
-      {/* áo blouse trắng phủ ngoài (cho dược sĩ) */}
+      {/* vai (hơi rộng hơn) */}
+      <mesh position={[0, 1.18, 0]} castShadow raycast={NULL_RAYCAST as any}>
+        <sphereGeometry args={[0.22, 18, 14, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshStandardMaterial color={shirtColor} roughness={0.78} />
+      </mesh>
+      {/* viền cổ áo */}
+      <mesh position={[0, 1.18, 0.07]} raycast={NULL_RAYCAST as any}>
+        <torusGeometry args={[0.08, 0.012, 8, 24, Math.PI]} />
+        <meshStandardMaterial color="#1f2937" roughness={0.6} />
+      </mesh>
+
+      {/* === ÁO BLOUSE === */}
       {hasCoat && (
         <>
-          <mesh position={[0, 0.78, 0.001]} castShadow raycast={NULL_RAYCAST as any}>
-            <cylinderGeometry args={[0.21, 0.21, 0.78, 20, 1, true, -Math.PI / 2 - 0.4, Math.PI + 0.8]} />
+          {/* vạt áo thân */}
+          <mesh position={[0, 0.85, 0.001]} castShadow raycast={NULL_RAYCAST as any}>
+            <cylinderGeometry args={[0.225, 0.215, 0.95, 20, 1, true, -Math.PI / 2 - 0.45, Math.PI + 0.9]} />
             <meshStandardMaterial color="#ffffff" roughness={0.55} side={2} />
           </mesh>
-          {/* túi áo */}
-          <mesh position={[-0.11, 0.6, 0.2]} raycast={NULL_RAYCAST as any}>
-            <planeGeometry args={[0.1, 0.1]} />
-            <meshStandardMaterial color="#e2e8f0" />
+          {/* hàng nút áo */}
+          {[0.85, 0.7, 0.55, 0.4].map((y, i) => (
+            <mesh key={i} position={[0, y, 0.215]} raycast={NULL_RAYCAST as any}>
+              <sphereGeometry args={[0.011, 10, 10]} />
+              <meshStandardMaterial color="#cbd5e1" metalness={0.5} roughness={0.4} />
+            </mesh>
+          ))}
+          {/* túi áo bên trái */}
+          <mesh position={[-0.13, 0.62, 0.215]} raycast={NULL_RAYCAST as any}>
+            <planeGeometry args={[0.13, 0.12]} />
+            <meshStandardMaterial color="#f1f5f9" />
+          </mesh>
+          {/* viền túi */}
+          <mesh position={[-0.13, 0.68, 0.216]} raycast={NULL_RAYCAST as any}>
+            <planeGeometry args={[0.13, 0.005]} />
+            <meshStandardMaterial color="#94a3b8" />
           </mesh>
           {/* thẻ tên */}
-          <mesh position={[0.1, 0.95, 0.2]} raycast={NULL_RAYCAST as any}>
-            <planeGeometry args={[0.12, 0.07]} />
+          <mesh position={[0.13, 1.05, 0.215]} raycast={NULL_RAYCAST as any}>
+            <planeGeometry args={[0.14, 0.08]} />
             <meshStandardMaterial color="#fef3c7" />
+          </mesh>
+          <Text
+            position={[0.13, 1.06, 0.218]}
+            fontSize={0.022}
+            color="#7c2d12"
+            anchorX="center"
+          >
+            DƯỢC SĨ
+          </Text>
+          {/* ống nghe quanh cổ */}
+          <mesh position={[0, 1.16, 0.18]} rotation={[Math.PI / 2, 0, 0]} raycast={NULL_RAYCAST as any}>
+            <torusGeometry args={[0.09, 0.012, 8, 24, Math.PI]} />
+            <meshStandardMaterial color="#0f172a" roughness={0.6} />
           </mesh>
         </>
       )}
-      {/* tay trái */}
-      <mesh position={[-0.24, 0.88, 0]} rotation={[0, 0, 0.12]} castShadow raycast={NULL_RAYCAST as any}>
-        <cylinderGeometry args={[0.05, 0.05, 0.5, 12]} />
+
+      {/* === TAY === */}
+      <mesh
+        position={[-0.255, 0.95, 0]}
+        rotation={[0, 0, 0.14]}
+        castShadow
+        raycast={NULL_RAYCAST as any}
+      >
+        <capsuleGeometry args={[0.052, 0.42, 8, 14]} />
         <meshStandardMaterial color={hasCoat ? "#ffffff" : shirtColor} roughness={0.75} />
       </mesh>
-      {/* tay phải */}
-      <mesh position={[0.24, 0.88, 0]} rotation={[0, 0, -0.12]} castShadow raycast={NULL_RAYCAST as any}>
-        <cylinderGeometry args={[0.05, 0.05, 0.5, 12]} />
+      <mesh
+        position={[0.255, 0.95, 0]}
+        rotation={[0, 0, -0.14]}
+        castShadow
+        raycast={NULL_RAYCAST as any}
+      >
+        <capsuleGeometry args={[0.052, 0.42, 8, 14]} />
         <meshStandardMaterial color={hasCoat ? "#ffffff" : shirtColor} roughness={0.75} />
       </mesh>
       {/* bàn tay */}
-      <mesh position={[-0.26, 0.6, 0]} castShadow raycast={NULL_RAYCAST as any}>
-        <sphereGeometry args={[0.055, 12, 10]} />
+      <mesh position={[-0.295, 0.65, 0]} castShadow raycast={NULL_RAYCAST as any}>
+        <sphereGeometry args={[0.06, 14, 12]} />
         <meshStandardMaterial color={skinColor} roughness={0.85} />
       </mesh>
-      <mesh position={[0.26, 0.6, 0]} castShadow raycast={NULL_RAYCAST as any}>
-        <sphereGeometry args={[0.055, 12, 10]} />
+      <mesh position={[0.295, 0.65, 0]} castShadow raycast={NULL_RAYCAST as any}>
+        <sphereGeometry args={[0.06, 14, 12]} />
         <meshStandardMaterial color={skinColor} roughness={0.85} />
       </mesh>
-      {/* cổ */}
-      <mesh position={[0, 1.22, 0]} castShadow raycast={NULL_RAYCAST as any}>
-        <cylinderGeometry args={[0.05, 0.06, 0.08, 12]} />
+      {/* ngón cái */}
+      <mesh position={[-0.255, 0.685, 0.04]} castShadow raycast={NULL_RAYCAST as any}>
+        <sphereGeometry args={[0.022, 10, 10]} />
         <meshStandardMaterial color={skinColor} roughness={0.85} />
       </mesh>
-      {/* đầu */}
-      <mesh position={[0, 1.35, 0]} castShadow raycast={NULL_RAYCAST as any}>
-        <sphereGeometry args={[0.14, 24, 22]} />
-        <meshStandardMaterial color={skinColor} roughness={0.8} />
+      <mesh position={[0.255, 0.685, 0.04]} castShadow raycast={NULL_RAYCAST as any}>
+        <sphereGeometry args={[0.022, 10, 10]} />
+        <meshStandardMaterial color={skinColor} roughness={0.85} />
       </mesh>
-      {/* tóc */}
-      <mesh position={[0, 1.4, -0.005]} raycast={NULL_RAYCAST as any}>
-        <sphereGeometry args={[0.145, 24, 22, 0, Math.PI * 2, 0, Math.PI / 1.7]} />
-        <meshStandardMaterial color={hairColor} roughness={0.95} />
+
+      {/* === CỔ === */}
+      <mesh position={[0, 1.26, 0]} castShadow raycast={NULL_RAYCAST as any}>
+        <cylinderGeometry args={[0.055, 0.07, 0.1, 14]} />
+        <meshStandardMaterial color={skinColor} roughness={0.85} />
       </mesh>
-      {/* mắt */}
-      <mesh position={[-0.045, 1.36, 0.125]} raycast={NULL_RAYCAST as any}>
-        <sphereGeometry args={[0.015, 10, 10]} />
-        <meshStandardMaterial color="#0f172a" />
-      </mesh>
-      <mesh position={[0.045, 1.36, 0.125]} raycast={NULL_RAYCAST as any}>
-        <sphereGeometry args={[0.015, 10, 10]} />
-        <meshStandardMaterial color="#0f172a" />
-      </mesh>
-      {/* miệng */}
-      <mesh position={[0, 1.30, 0.128]} raycast={NULL_RAYCAST as any}>
-        <boxGeometry args={[0.04, 0.008, 0.005]} />
-        <meshStandardMaterial color="#7f1d1d" />
-      </mesh>
+
+      {/* === ĐẦU === */}
+      <group ref={headRef} position={[0, 1.42, 0]}>
+        {/* khuôn mặt (hơi oval) */}
+        <mesh castShadow raycast={NULL_RAYCAST as any} scale={[1, 1.1, 0.95]}>
+          <sphereGeometry args={[0.145, 26, 24]} />
+          <meshStandardMaterial color={skinColor} roughness={0.75} />
+        </mesh>
+        {/* tai trái */}
+        <mesh position={[-0.142, -0.01, 0]} raycast={NULL_RAYCAST as any}>
+          <sphereGeometry args={[0.034, 14, 12]} />
+          <meshStandardMaterial color={skinColor} roughness={0.85} />
+        </mesh>
+        <mesh position={[-0.149, -0.012, 0]} raycast={NULL_RAYCAST as any}>
+          <sphereGeometry args={[0.018, 10, 8]} />
+          <meshStandardMaterial color={skinDark} roughness={0.9} />
+        </mesh>
+        {/* tai phải */}
+        <mesh position={[0.142, -0.01, 0]} raycast={NULL_RAYCAST as any}>
+          <sphereGeometry args={[0.034, 14, 12]} />
+          <meshStandardMaterial color={skinColor} roughness={0.85} />
+        </mesh>
+        <mesh position={[0.149, -0.012, 0]} raycast={NULL_RAYCAST as any}>
+          <sphereGeometry args={[0.018, 10, 8]} />
+          <meshStandardMaterial color={skinDark} roughness={0.9} />
+        </mesh>
+
+        {/* tóc — phần trên đầu */}
+        <mesh position={[0, 0.035, -0.005]} raycast={NULL_RAYCAST as any} scale={[1.02, 1.0, 1.05]}>
+          <sphereGeometry
+            args={[0.152, 26, 24, 0, Math.PI * 2, 0, Math.PI / 1.65]}
+          />
+          <meshStandardMaterial color={hairColor} roughness={0.95} />
+        </mesh>
+        {/* mái trước (fringe) — chếch sang một bên */}
+        <mesh position={[-0.025, 0.085, 0.118]} rotation={[0.15, 0, -0.2]} raycast={NULL_RAYCAST as any}>
+          <sphereGeometry args={[0.082, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2.5]} />
+          <meshStandardMaterial color={hairColor} roughness={0.95} />
+        </mesh>
+
+        {/* tóc ngang vai (cho bệnh nhân nữ) */}
+        {ponytail && (
+          <>
+            <mesh position={[-0.115, -0.07, -0.005]} raycast={NULL_RAYCAST as any}>
+              <capsuleGeometry args={[0.05, 0.16, 8, 14]} />
+              <meshStandardMaterial color={hairColor} roughness={0.95} />
+            </mesh>
+            <mesh position={[0.115, -0.07, -0.005]} raycast={NULL_RAYCAST as any}>
+              <capsuleGeometry args={[0.05, 0.16, 8, 14]} />
+              <meshStandardMaterial color={hairColor} roughness={0.95} />
+            </mesh>
+            <mesh position={[0, -0.06, -0.105]} raycast={NULL_RAYCAST as any}>
+              <sphereGeometry args={[0.115, 18, 14, 0, Math.PI * 2, 0, Math.PI / 1.5]} />
+              <meshStandardMaterial color={hairColor} roughness={0.95} />
+            </mesh>
+          </>
+        )}
+
+        {/* lông mày */}
+        <mesh position={[-0.055, 0.04, 0.13]} rotation={[0, 0, 0.15]} raycast={NULL_RAYCAST as any}>
+          <boxGeometry args={[0.05, 0.011, 0.005]} />
+          <meshStandardMaterial color={hairColor} />
+        </mesh>
+        <mesh position={[0.055, 0.04, 0.13]} rotation={[0, 0, -0.15]} raycast={NULL_RAYCAST as any}>
+          <boxGeometry args={[0.05, 0.011, 0.005]} />
+          <meshStandardMaterial color={hairColor} />
+        </mesh>
+
+        {/* tròng trắng */}
+        <mesh position={[-0.05, 0.01, 0.13]} raycast={NULL_RAYCAST as any}>
+          <sphereGeometry args={[0.022, 14, 12]} />
+          <meshStandardMaterial color="#ffffff" />
+        </mesh>
+        <mesh position={[0.05, 0.01, 0.13]} raycast={NULL_RAYCAST as any}>
+          <sphereGeometry args={[0.022, 14, 12]} />
+          <meshStandardMaterial color="#ffffff" />
+        </mesh>
+        {/* con ngươi */}
+        <mesh position={[-0.05, 0.01, 0.148]} raycast={NULL_RAYCAST as any}>
+          <sphereGeometry args={[0.012, 10, 10]} />
+          <meshStandardMaterial color="#0f172a" />
+        </mesh>
+        <mesh position={[0.05, 0.01, 0.148]} raycast={NULL_RAYCAST as any}>
+          <sphereGeometry args={[0.012, 10, 10]} />
+          <meshStandardMaterial color="#0f172a" />
+        </mesh>
+        {/* hi-light mắt */}
+        <mesh position={[-0.046, 0.014, 0.156]} raycast={NULL_RAYCAST as any}>
+          <sphereGeometry args={[0.004, 8, 8]} />
+          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.5} />
+        </mesh>
+        <mesh position={[0.054, 0.014, 0.156]} raycast={NULL_RAYCAST as any}>
+          <sphereGeometry args={[0.004, 8, 8]} />
+          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.5} />
+        </mesh>
+
+        {/* kính (cho dược sĩ) */}
+        {glasses && (
+          <>
+            <mesh position={[-0.05, 0.01, 0.16]} rotation={[Math.PI / 2, 0, 0]} raycast={NULL_RAYCAST as any}>
+              <torusGeometry args={[0.032, 0.005, 8, 24]} />
+              <meshStandardMaterial color="#0f172a" metalness={0.5} roughness={0.4} />
+            </mesh>
+            <mesh position={[0.05, 0.01, 0.16]} rotation={[Math.PI / 2, 0, 0]} raycast={NULL_RAYCAST as any}>
+              <torusGeometry args={[0.032, 0.005, 8, 24]} />
+              <meshStandardMaterial color="#0f172a" metalness={0.5} roughness={0.4} />
+            </mesh>
+            <mesh position={[0, 0.01, 0.16]} raycast={NULL_RAYCAST as any}>
+              <boxGeometry args={[0.04, 0.005, 0.005]} />
+              <meshStandardMaterial color="#0f172a" />
+            </mesh>
+          </>
+        )}
+
+        {/* mũi */}
+        <mesh position={[0, -0.015, 0.148]} rotation={[Math.PI / 2, 0, 0]} raycast={NULL_RAYCAST as any}>
+          <coneGeometry args={[0.018, 0.05, 12]} />
+          <meshStandardMaterial color={skinDark} roughness={0.85} />
+        </mesh>
+
+        {/* môi trên */}
+        <mesh position={[0, -0.058, 0.138]} raycast={NULL_RAYCAST as any}>
+          <boxGeometry args={[0.055, 0.008, 0.005]} />
+          <meshStandardMaterial color={lipColor} />
+        </mesh>
+        {/* cười nhẹ – môi dưới hơi cong */}
+        <mesh position={[0, -0.07, 0.138]} rotation={[0, 0, 0]} raycast={NULL_RAYCAST as any}>
+          <torusGeometry args={[0.022, 0.005, 8, 16, Math.PI]} />
+          <meshStandardMaterial color={lipColor} />
+        </mesh>
+
+        {/* má hồng */}
+        <mesh position={[-0.085, -0.04, 0.115]} raycast={NULL_RAYCAST as any}>
+          <sphereGeometry args={[0.025, 10, 10]} />
+          <meshStandardMaterial color="#fda4af" transparent opacity={0.45} />
+        </mesh>
+        <mesh position={[0.085, -0.04, 0.115]} raycast={NULL_RAYCAST as any}>
+          <sphereGeometry args={[0.025, 10, 10]} />
+          <meshStandardMaterial color="#fda4af" transparent opacity={0.45} />
+        </mesh>
+      </group>
 
       {/* tên dưới chân */}
       <Text
-        position={[0, -0.05, 0.25]}
-        fontSize={0.08}
+        position={[0, -0.05, 0.3]}
+        fontSize={0.085}
         color={labelColor}
         outlineColor="#ffffff"
-        outlineWidth={0.008}
+        outlineWidth={0.01}
         anchorX="center"
       >
         {label}
       </Text>
 
-      {/* bubble thoại lơ lửng trên đầu */}
+      {/* === BUBBLE THOẠI – PHONG CÁCH TRUYỆN TRANH === */}
       {speech && (
         <Html
-          position={[0, 1.85, 0]}
+          position={[0, 2.0, 0]}
           center
-          distanceFactor={6}
+          distanceFactor={5}
           zIndexRange={[20, 0]}
           pointerEvents="none"
           style={{ pointerEvents: "none" }}
         >
-          <div
-            style={{
-              background: bubbleColor,
-              border: `2px solid ${bubbleBorder}`,
-              borderRadius: 14,
-              padding: "8px 12px",
-              fontSize: 13,
-              lineHeight: 1.35,
-              color: "#0f172a",
-              maxWidth: 240,
-              minWidth: 80,
-              boxShadow: "0 6px 18px rgba(0,0,0,0.25)",
-              position: "relative",
-              fontFamily:
-                "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-              textAlign: "center",
-              userSelect: "none"
-            }}
-          >
-            {speech}
-            <div
-              style={{
-                position: "absolute",
-                bottom: -10,
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: 0,
-                height: 0,
-                borderLeft: "10px solid transparent",
-                borderRight: "10px solid transparent",
-                borderTop: `10px solid ${bubbleBorder}`
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                bottom: -7,
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: 0,
-                height: 0,
-                borderLeft: "8px solid transparent",
-                borderRight: "8px solid transparent",
-                borderTop: `8px solid ${bubbleColor}`
-              }}
-            />
-          </div>
+          <ComicBubble text={speech} fill={bubbleColor} accent={bubbleAccent} />
         </Html>
       )}
     </group>
+  );
+}
+
+/* Bubble truyện tranh: viền đen dày, font comic, đổ bóng hard, đuôi 2 lớp */
+function ComicBubble({ text, fill, accent }: { text: string; fill: string; accent: string }) {
+  return (
+    <div
+      style={{
+        position: "relative",
+        background: fill,
+        border: "3px solid #0f172a",
+        borderRadius: "26px / 32px",
+        padding: "12px 18px",
+        fontFamily:
+          "'Bangers','Comic Sans MS','Marker Felt','Chalkboard SE',cursive,sans-serif",
+        fontWeight: 700,
+        fontSize: 14,
+        lineHeight: 1.3,
+        color: "#0f172a",
+        maxWidth: 220,
+        minWidth: 80,
+        textAlign: "center",
+        letterSpacing: 0.3,
+        boxShadow: "5px 5px 0 #0f172a, 5px 5px 0 1px rgba(0,0,0,0)",
+        transform: "rotate(-1.5deg)",
+        userSelect: "none"
+      }}
+    >
+      {/* dải accent nhỏ trên cùng */}
+      <div
+        style={{
+          position: "absolute",
+          top: -3,
+          left: 14,
+          right: 14,
+          height: 4,
+          background: accent,
+          borderRadius: 4,
+          opacity: 0.9
+        }}
+      />
+      {text}
+      {/* đuôi đen – lớp ngoài */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: -22,
+          left: "50%",
+          transform: "translateX(-50%) rotate(-6deg)",
+          width: 0,
+          height: 0,
+          borderLeft: "14px solid transparent",
+          borderRight: "10px solid transparent",
+          borderTop: "24px solid #0f172a"
+        }}
+      />
+      {/* đuôi trắng – lớp trong, lệch chút để hở viền */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: -16,
+          left: "50%",
+          transform: "translateX(-50%) rotate(-6deg)",
+          width: 0,
+          height: 0,
+          borderLeft: "10px solid transparent",
+          borderRight: "7px solid transparent",
+          borderTop: `18px solid ${fill}`
+        }}
+      />
+    </div>
   );
 }
 
@@ -1659,7 +1872,7 @@ export default function GppScene({
           });
         })}
 
-        {/* Bệnh nhân (đứng phía trước quầy) – có bubble thoại */}
+        {/* Bệnh nhân (đứng trước quầy, nữ tóc dài, áo hồng) */}
         <Person
           position={[-1.4, -1.0, 3.2]}
           rotationY={-0.25}
@@ -1667,16 +1880,17 @@ export default function GppScene({
           pantsColor="#1e3a8a"
           hairColor="#0f172a"
           skinColor="#fde68a"
+          ponytail
           label="Khách hàng"
-          labelColor="#7c3aed"
+          labelColor="#9d174d"
           speech={patientLine && patientLine.length > 140 ? patientLine.slice(0, 140) + "…" : patientLine}
-          bubbleColor="#fef3c7"
-          bubbleBorder="#92400e"
+          bubbleColor="#fef9c3"
+          bubbleAccent="#f59e0b"
           bobSpeed={1.3}
           bobAmount={0.012}
         />
 
-        {/* Dược sĩ (đứng sau quầy) – có bubble thoại khi user gõ */}
+        {/* Dược sĩ (đứng sau quầy, áo blouse trắng, kính, đeo ống nghe) */}
         <Person
           position={[0.6, -1.0, 0.85]}
           rotationY={Math.PI + 0.15}
@@ -1688,8 +1902,9 @@ export default function GppScene({
           labelColor="#047857"
           speech={pharmacistLine && pharmacistLine.length > 140 ? pharmacistLine.slice(0, 140) + "…" : pharmacistLine}
           bubbleColor="#ecfdf5"
-          bubbleBorder="#047857"
+          bubbleAccent="#10b981"
           hasCoat
+          glasses
           bobSpeed={1.0}
           bobAmount={0.010}
         />
