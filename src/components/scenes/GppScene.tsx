@@ -19,8 +19,8 @@ import { TIMING_LABEL, type HdsdLabel } from "@/lib/labels/hdsd";
 
 const NULL_RAYCAST = () => null as unknown as void;
 
-useGLTF.preload("/models/michelle.glb");
-useGLTF.preload("/models/soldier.glb");
+useGLTF.preload("/models/patient.glb");
+useGLTF.preload("/models/pharmacist.glb");
 useGLTF.preload("/models/plant.glb");
 useGLTF.preload("/models/fridge.glb");
 
@@ -35,14 +35,15 @@ interface Props {
   pharmacistLine?: string;
 }
 
-/* ===================== Tủ thuốc ===================== */
+/* ===================== Tủ thuốc =====================
+   Đã hạ thấp + giãn ngang để dược sĩ với được tới ngăn trên cùng */
 const COLS = 3;
 const ROWS = 2;
-const CELL_W = 1.95;
-const CELL_H = 1.30;
+const CELL_W = 2.30; // rộng hơn (1.95 → 2.30)
+const CELL_H = 0.95; // thấp hơn (1.30 → 0.95)
 const CELL_D = 0.62;
 const ORIGIN_X = -((COLS - 1) * CELL_W) / 2;
-const ORIGIN_Y = 1.05;
+const ORIGIN_Y = 0.55; // hạ thấp cả tủ (1.05 → 0.55) để ngăn trên ~2.4m
 
 /* Khay đựng thuốc trên quầy cho khách – 3×2 ô */
 const PICK_TRAY_BASE: [number, number, number] = [-0.55, -0.02, 2.50];
@@ -1983,7 +1984,8 @@ function ModelCharacter({
   speech,
   bubbleColor = "#ffffff",
   bubbleAccent = "#fbbf24",
-  bubbleY = 1.95
+  bubbleY = 1.95,
+  wearCoat = false
 }: {
   url: string;
   position: [number, number, number];
@@ -1995,6 +1997,7 @@ function ModelCharacter({
   bubbleColor?: string;
   bubbleAccent?: string;
   bubbleY?: number;
+  wearCoat?: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const { scene, animations } = useGLTF(url) as any;
@@ -2004,8 +2007,16 @@ function ModelCharacter({
     if (!actions) return;
     const keys = Object.keys(actions);
     if (!keys.length) return;
-    const idle = actions[keys[0]];
-    idle?.reset().fadeIn(0.4).play();
+    // Ưu tiên clip Idle/Stand thay vì clip đầu tiên (tránh chọn nhầm Walking/Dance)
+    const idleKey =
+      keys.find((k) => /idle|stand/i.test(k)) ||
+      keys.find((k) => !/walk|run|dance|jump|jog|fall/i.test(k)) ||
+      keys[0];
+    const idle = actions[idleKey];
+    if (!idle) return;
+    // Idle nên chạy chậm và mượt, không bay nhảy
+    idle.timeScale = 0.7;
+    idle.reset().fadeIn(0.4).play();
     return () => {
       idle?.fadeOut(0.2).stop();
     };
@@ -2026,6 +2037,92 @@ function ModelCharacter({
   return (
     <group ref={groupRef} position={position} rotation={[0, rotationY, 0]} scale={scale}>
       <primitive object={scene} />
+
+      {/* Áo blu trắng đắp lên model dược sĩ – kiểu vest dài, thẻ tên, ống nghe */}
+      {wearCoat && (
+        <group>
+          {/* thân áo blu (cylinder ôm thân, dài tới đùi) */}
+          <mesh position={[0, 1.05, 0.05]} castShadow>
+            <cylinderGeometry args={[0.32, 0.34, 1.10, 20, 1, true, -Math.PI / 2 - 0.4, Math.PI + 0.8]} />
+            <meshStandardMaterial color="#ffffff" roughness={0.5} side={2} />
+          </mesh>
+          {/* mặt lưng áo */}
+          <mesh position={[0, 1.05, -0.05]} castShadow>
+            <cylinderGeometry args={[0.32, 0.34, 1.10, 20, 1, true, Math.PI / 2 + 0.4, Math.PI - 0.8]} />
+            <meshStandardMaterial color="#f1f5f9" roughness={0.55} side={2} />
+          </mesh>
+          {/* hàng nút áo */}
+          {[1.40, 1.20, 1.00, 0.80, 0.60].map((y, i) => (
+            <mesh key={i} position={[0, y, 0.32]}>
+              <sphereGeometry args={[0.018, 12, 12]} />
+              <meshStandardMaterial color="#cbd5e1" metalness={0.7} roughness={0.25} />
+            </mesh>
+          ))}
+          {/* lapel V-cổ trái */}
+          <mesh position={[-0.10, 1.50, 0.31]} rotation={[0, 0, -0.55]}>
+            <planeGeometry args={[0.16, 0.28]} />
+            <meshStandardMaterial color="#ffffff" roughness={0.5} side={2} />
+          </mesh>
+          {/* lapel V-cổ phải */}
+          <mesh position={[0.10, 1.50, 0.31]} rotation={[0, 0, 0.55]}>
+            <planeGeometry args={[0.16, 0.28]} />
+            <meshStandardMaterial color="#ffffff" roughness={0.5} side={2} />
+          </mesh>
+          {/* túi ngực trái */}
+          <mesh position={[-0.16, 1.18, 0.33]}>
+            <planeGeometry args={[0.16, 0.14]} />
+            <meshStandardMaterial color="#f8fafc" />
+          </mesh>
+          {/* bút trong túi */}
+          <mesh position={[-0.20, 1.22, 0.34]} rotation={[0, 0, -0.1]}>
+            <cylinderGeometry args={[0.01, 0.01, 0.10, 12]} />
+            <meshStandardMaterial color="#0d9488" />
+          </mesh>
+          {/* thẻ tên DƯỢC SĨ */}
+          <mesh position={[0.18, 1.46, 0.33]}>
+            <planeGeometry args={[0.18, 0.09]} />
+            <meshStandardMaterial color="#fef3c7" />
+          </mesh>
+          <mesh position={[0.18, 1.49, 0.331]}>
+            <planeGeometry args={[0.18, 0.025]} />
+            <meshStandardMaterial color="#0f766e" />
+          </mesh>
+          <Text
+            position={[0.18, 1.49, 0.333]}
+            fontSize={0.018}
+            color="#ffffff"
+            anchorX="center"
+          >
+            DƯỢC SĨ
+          </Text>
+          <Text
+            position={[0.18, 1.455, 0.333]}
+            fontSize={0.018}
+            color="#7c2d12"
+            anchorX="center"
+          >
+            Pharm.D
+          </Text>
+          {/* ống nghe quanh cổ */}
+          <mesh position={[0, 1.62, 0.27]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[0.12, 0.014, 8, 24, Math.PI]} />
+            <meshStandardMaterial color="#0f172a" roughness={0.55} />
+          </mesh>
+          <mesh position={[-0.10, 1.50, 0.27]}>
+            <cylinderGeometry args={[0.012, 0.012, 0.20, 8]} />
+            <meshStandardMaterial color="#0f172a" />
+          </mesh>
+          <mesh position={[0.10, 1.50, 0.27]}>
+            <cylinderGeometry args={[0.012, 0.012, 0.20, 8]} />
+            <meshStandardMaterial color="#0f172a" />
+          </mesh>
+          <mesh position={[0, 1.35, 0.30]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.04, 0.04, 0.015, 24]} />
+            <meshStandardMaterial color="#cbd5e1" metalness={0.85} roughness={0.2} />
+          </mesh>
+        </group>
+      )}
+
       <Text
         position={[0, -0.05, 0.45]}
         fontSize={0.085}
@@ -2200,9 +2297,9 @@ export default function GppScene({
         {/* Quạt trần xoay – chính giữa */}
         <CeilingFan position={[0, 5.55, 2.5]} />
 
-        {/* Biển chữ thập xanh trên đầu cabinet */}
-        <CrossSign position={[-3.5, 4.6, -1.25]} />
-        <CrossSign position={[3.5, 4.6, -1.25]} />
+        {/* Biển chữ thập xanh trên đầu cabinet (đã hạ thấp theo tủ mới) */}
+        <CrossSign position={[-4.0, 3.4, -1.25]} />
+        <CrossSign position={[4.0, 3.4, -1.25]} />
 
         {/* Poster */}
         <Poster
@@ -2273,9 +2370,9 @@ export default function GppScene({
           });
         })}
 
-        {/* Bệnh nhân — Michelle (Mixamo, có idle animation, dáng đứng tự nhiên) */}
+        {/* Bệnh nhân — Trần Thị Ngọc Thắm (người Việt thật, đứng yên không nhảy) */}
         <ModelCharacter
-          url="/models/michelle.glb"
+          url="/models/patient.glb"
           position={[-1.4, -1.0, 3.85]}
           rotationY={Math.atan2(0.6 - -1.4, 0.85 - 3.85)}
           scale={1.0}
@@ -2287,9 +2384,9 @@ export default function GppScene({
           bubbleY={1.85}
         />
 
-        {/* Dược sĩ — Soldier (Mixamo, có idle animation, dáng tự nhiên) */}
+        {/* Dược sĩ — Thanh (người Việt) + lab coat overlay */}
         <ModelCharacter
-          url="/models/soldier.glb"
+          url="/models/pharmacist.glb"
           position={[0.6, -1.0, 0.85]}
           rotationY={Math.atan2(-1.4 - 0.6, 3.85 - 0.85)}
           scale={1.0}
@@ -2299,6 +2396,7 @@ export default function GppScene({
           bubbleColor="#ecfdf5"
           bubbleAccent="#10b981"
           bubbleY={1.95}
+          wearCoat
         />
 
         {/* Tủ lạnh vắc-xin (model commercial fridge của Khronos) */}
