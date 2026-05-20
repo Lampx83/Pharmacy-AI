@@ -8,7 +8,8 @@ import {
   Environment,
   ContactShadows,
   SoftShadows,
-  MeshReflectorMaterial
+  MeshReflectorMaterial,
+  Html
 } from "@react-three/drei";
 import type * as THREE from "three";
 import { DRUGS, type DrugSpec } from "@/lib/catalog/gpp";
@@ -23,6 +24,8 @@ interface Props {
   onPick: (item: { id: string; isAntibiotic?: boolean; isHazardPregnancy?: boolean }) => void;
   onOpenPos: () => void;
   onOpenLabelEditor: () => void;
+  patientLine?: string;
+  pharmacistLine?: string;
 }
 
 /* ===================== Tủ thuốc ===================== */
@@ -73,6 +76,7 @@ function DrugBox({
 
   const groupRef = useRef<THREE.Group>(null);
   const tRef = useRef(0); // 0 = ở kệ, 1 = trên khay
+  const hoverRef = useRef(0); // 0..1 — lerp mượt để KHÔNG nhảy khi vào/ra hover
   const [hover, setHover] = useState(false);
 
   // chỉ hộp đại diện (primary) mới bay ra khi picked; các hộp khác là "tồn kho" trên kệ
@@ -83,10 +87,13 @@ function DrugBox({
     tRef.current += (target - tRef.current) * Math.min(1, dt * 3.0);
     const t = tRef.current;
 
+    // lerp mượt hover: enter/leave KHÔNG còn nhảy box
+    hoverRef.current += ((hover ? 1 : 0) - hoverRef.current) * Math.min(1, dt * 12);
+    const h = hoverRef.current;
+
     const arcY = Math.sin(t * Math.PI) * 0.55; // bay theo cung parabol
-    // hover lift mượt, fade dần theo t — KHÔNG cắt đột ngột (fix bug "nhảy")
-    const hoverLift = hover ? 0.10 * (1 - 0.6 * t) : 0;
-    const hoverTilt = hover ? 0.05 * (1 - 0.6 * t) : 0;
+    const hoverLift = 0.09 * h * (1 - 0.55 * t);
+    const hoverTilt = 0.04 * h * (1 - 0.55 * t);
 
     g.position.x = shelfPos[0] + (targetPos[0] - shelfPos[0]) * t;
     g.position.y = shelfPos[1] + (targetPos[1] - shelfPos[1]) * t + arcY + hoverLift;
@@ -586,10 +593,12 @@ function CabinetDoor({
   const [open, setOpen] = useState(false);
   const [hover, setHover] = useState(false);
 
-  const doorW = cabinetWidth / 2 - 0.1;
+  // doorW lớn hơn nửa tủ ~0.05 để 2 cánh CHỒNG NHAU ở giữa khi đóng → kín hoàn toàn
+  const doorW = cabinetWidth / 2 - 0.05;
   const doorH = cabinetHeight - 0.2;
-  // toạ độ X tâm cánh khi đóng/mở
-  const closedX = side === "left" ? -doorW / 2 - 0.025 : doorW / 2 + 0.025;
+  // tâm cánh đặt sao cho mép trong vượt qua tâm tủ 0.04 → 2 cánh phủ lấp nhau ở giữa
+  const overlap = 0.04;
+  const closedX = side === "left" ? -doorW / 2 + overlap : doorW / 2 - overlap;
   const openX = -closedX;
   // hai cánh ở 2 mức z khác nhau để có thể trượt chui qua nhau (cánh trái trước)
   const baseZ = side === "left" ? 0.555 : 0.515;
@@ -1299,6 +1308,214 @@ function Walls() {
   );
 }
 
+/* ===================== Nhân vật ===================== */
+function Person({
+  position,
+  rotationY = 0,
+  shirtColor,
+  pantsColor,
+  hairColor = "#1c1917",
+  skinColor = "#fde68a",
+  label,
+  labelColor = "#0f172a",
+  speech,
+  bubbleColor = "#ffffff",
+  bubbleBorder = "#0f766e",
+  hasCoat = false,
+  bobSpeed = 1.2,
+  bobAmount = 0.015
+}: {
+  position: [number, number, number];
+  rotationY?: number;
+  shirtColor: string;
+  pantsColor: string;
+  hairColor?: string;
+  skinColor?: string;
+  label: string;
+  labelColor?: string;
+  speech?: string;
+  bubbleColor?: string;
+  bubbleBorder?: string;
+  hasCoat?: boolean;
+  bobSpeed?: number;
+  bobAmount?: number;
+}) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    if (ref.current) {
+      ref.current.position.y = position[1] + Math.sin(clock.elapsedTime * bobSpeed) * bobAmount;
+    }
+  });
+
+  return (
+    <group ref={ref} position={position} rotation={[0, rotationY, 0]} scale={1.15}>
+      {/* chân trái */}
+      <mesh position={[-0.08, 0.32, 0]} castShadow raycast={NULL_RAYCAST as any}>
+        <cylinderGeometry args={[0.06, 0.06, 0.64, 14]} />
+        <meshStandardMaterial color={pantsColor} roughness={0.85} />
+      </mesh>
+      {/* chân phải */}
+      <mesh position={[0.08, 0.32, 0]} castShadow raycast={NULL_RAYCAST as any}>
+        <cylinderGeometry args={[0.06, 0.06, 0.64, 14]} />
+        <meshStandardMaterial color={pantsColor} roughness={0.85} />
+      </mesh>
+      {/* giày */}
+      <mesh position={[-0.08, 0.025, 0.03]} castShadow raycast={NULL_RAYCAST as any}>
+        <boxGeometry args={[0.11, 0.05, 0.18]} />
+        <meshStandardMaterial color="#1f2937" roughness={0.7} />
+      </mesh>
+      <mesh position={[0.08, 0.025, 0.03]} castShadow raycast={NULL_RAYCAST as any}>
+        <boxGeometry args={[0.11, 0.05, 0.18]} />
+        <meshStandardMaterial color="#1f2937" roughness={0.7} />
+      </mesh>
+      {/* thân áo */}
+      <mesh position={[0, 0.9, 0]} castShadow raycast={NULL_RAYCAST as any}>
+        <cylinderGeometry args={[0.18, 0.16, 0.55, 18]} />
+        <meshStandardMaterial color={shirtColor} roughness={0.75} />
+      </mesh>
+      {/* áo blouse trắng phủ ngoài (cho dược sĩ) */}
+      {hasCoat && (
+        <>
+          <mesh position={[0, 0.78, 0.001]} castShadow raycast={NULL_RAYCAST as any}>
+            <cylinderGeometry args={[0.21, 0.21, 0.78, 20, 1, true, -Math.PI / 2 - 0.4, Math.PI + 0.8]} />
+            <meshStandardMaterial color="#ffffff" roughness={0.55} side={2} />
+          </mesh>
+          {/* túi áo */}
+          <mesh position={[-0.11, 0.6, 0.2]} raycast={NULL_RAYCAST as any}>
+            <planeGeometry args={[0.1, 0.1]} />
+            <meshStandardMaterial color="#e2e8f0" />
+          </mesh>
+          {/* thẻ tên */}
+          <mesh position={[0.1, 0.95, 0.2]} raycast={NULL_RAYCAST as any}>
+            <planeGeometry args={[0.12, 0.07]} />
+            <meshStandardMaterial color="#fef3c7" />
+          </mesh>
+        </>
+      )}
+      {/* tay trái */}
+      <mesh position={[-0.24, 0.88, 0]} rotation={[0, 0, 0.12]} castShadow raycast={NULL_RAYCAST as any}>
+        <cylinderGeometry args={[0.05, 0.05, 0.5, 12]} />
+        <meshStandardMaterial color={hasCoat ? "#ffffff" : shirtColor} roughness={0.75} />
+      </mesh>
+      {/* tay phải */}
+      <mesh position={[0.24, 0.88, 0]} rotation={[0, 0, -0.12]} castShadow raycast={NULL_RAYCAST as any}>
+        <cylinderGeometry args={[0.05, 0.05, 0.5, 12]} />
+        <meshStandardMaterial color={hasCoat ? "#ffffff" : shirtColor} roughness={0.75} />
+      </mesh>
+      {/* bàn tay */}
+      <mesh position={[-0.26, 0.6, 0]} castShadow raycast={NULL_RAYCAST as any}>
+        <sphereGeometry args={[0.055, 12, 10]} />
+        <meshStandardMaterial color={skinColor} roughness={0.85} />
+      </mesh>
+      <mesh position={[0.26, 0.6, 0]} castShadow raycast={NULL_RAYCAST as any}>
+        <sphereGeometry args={[0.055, 12, 10]} />
+        <meshStandardMaterial color={skinColor} roughness={0.85} />
+      </mesh>
+      {/* cổ */}
+      <mesh position={[0, 1.22, 0]} castShadow raycast={NULL_RAYCAST as any}>
+        <cylinderGeometry args={[0.05, 0.06, 0.08, 12]} />
+        <meshStandardMaterial color={skinColor} roughness={0.85} />
+      </mesh>
+      {/* đầu */}
+      <mesh position={[0, 1.35, 0]} castShadow raycast={NULL_RAYCAST as any}>
+        <sphereGeometry args={[0.14, 24, 22]} />
+        <meshStandardMaterial color={skinColor} roughness={0.8} />
+      </mesh>
+      {/* tóc */}
+      <mesh position={[0, 1.4, -0.005]} raycast={NULL_RAYCAST as any}>
+        <sphereGeometry args={[0.145, 24, 22, 0, Math.PI * 2, 0, Math.PI / 1.7]} />
+        <meshStandardMaterial color={hairColor} roughness={0.95} />
+      </mesh>
+      {/* mắt */}
+      <mesh position={[-0.045, 1.36, 0.125]} raycast={NULL_RAYCAST as any}>
+        <sphereGeometry args={[0.015, 10, 10]} />
+        <meshStandardMaterial color="#0f172a" />
+      </mesh>
+      <mesh position={[0.045, 1.36, 0.125]} raycast={NULL_RAYCAST as any}>
+        <sphereGeometry args={[0.015, 10, 10]} />
+        <meshStandardMaterial color="#0f172a" />
+      </mesh>
+      {/* miệng */}
+      <mesh position={[0, 1.30, 0.128]} raycast={NULL_RAYCAST as any}>
+        <boxGeometry args={[0.04, 0.008, 0.005]} />
+        <meshStandardMaterial color="#7f1d1d" />
+      </mesh>
+
+      {/* tên dưới chân */}
+      <Text
+        position={[0, -0.05, 0.25]}
+        fontSize={0.08}
+        color={labelColor}
+        outlineColor="#ffffff"
+        outlineWidth={0.008}
+        anchorX="center"
+      >
+        {label}
+      </Text>
+
+      {/* bubble thoại lơ lửng trên đầu */}
+      {speech && (
+        <Html
+          position={[0, 1.85, 0]}
+          center
+          distanceFactor={6}
+          zIndexRange={[20, 0]}
+          pointerEvents="none"
+          style={{ pointerEvents: "none" }}
+        >
+          <div
+            style={{
+              background: bubbleColor,
+              border: `2px solid ${bubbleBorder}`,
+              borderRadius: 14,
+              padding: "8px 12px",
+              fontSize: 13,
+              lineHeight: 1.35,
+              color: "#0f172a",
+              maxWidth: 240,
+              minWidth: 80,
+              boxShadow: "0 6px 18px rgba(0,0,0,0.25)",
+              position: "relative",
+              fontFamily:
+                "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+              textAlign: "center",
+              userSelect: "none"
+            }}
+          >
+            {speech}
+            <div
+              style={{
+                position: "absolute",
+                bottom: -10,
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: 0,
+                height: 0,
+                borderLeft: "10px solid transparent",
+                borderRight: "10px solid transparent",
+                borderTop: `10px solid ${bubbleBorder}`
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                bottom: -7,
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: 0,
+                height: 0,
+                borderLeft: "8px solid transparent",
+                borderRight: "8px solid transparent",
+                borderTop: `8px solid ${bubbleColor}`
+              }}
+            />
+          </div>
+        </Html>
+      )}
+    </group>
+  );
+}
+
 /* ===================== Scene chính ===================== */
 export default function GppScene({
   picked,
@@ -1306,7 +1523,9 @@ export default function GppScene({
   pendingLabel,
   onPick,
   onOpenPos,
-  onOpenLabelEditor
+  onOpenLabelEditor,
+  patientLine,
+  pharmacistLine
 }: Props) {
   const labelCount = Object.keys(labels).length;
 
@@ -1439,6 +1658,41 @@ export default function GppScene({
             );
           });
         })}
+
+        {/* Bệnh nhân (đứng phía trước quầy) – có bubble thoại */}
+        <Person
+          position={[-1.4, -1.0, 3.2]}
+          rotationY={-0.25}
+          shirtColor="#f472b6"
+          pantsColor="#1e3a8a"
+          hairColor="#0f172a"
+          skinColor="#fde68a"
+          label="Khách hàng"
+          labelColor="#7c3aed"
+          speech={patientLine && patientLine.length > 140 ? patientLine.slice(0, 140) + "…" : patientLine}
+          bubbleColor="#fef3c7"
+          bubbleBorder="#92400e"
+          bobSpeed={1.3}
+          bobAmount={0.012}
+        />
+
+        {/* Dược sĩ (đứng sau quầy) – có bubble thoại khi user gõ */}
+        <Person
+          position={[0.6, -1.0, 0.85]}
+          rotationY={Math.PI + 0.15}
+          shirtColor="#a7f3d0"
+          pantsColor="#0f172a"
+          hairColor="#1c1917"
+          skinColor="#fef3c7"
+          label="Dược sĩ (bạn)"
+          labelColor="#047857"
+          speech={pharmacistLine && pharmacistLine.length > 140 ? pharmacistLine.slice(0, 140) + "…" : pharmacistLine}
+          bubbleColor="#ecfdf5"
+          bubbleBorder="#047857"
+          hasCoat
+          bobSpeed={1.0}
+          bobAmount={0.010}
+        />
 
         {/* Tủ lạnh vắc-xin bên phải */}
         <VaccineFridge position={[5.5, -1.0, -0.5]} />

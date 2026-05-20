@@ -145,6 +145,8 @@ export default function SimulationClient({ moduleId }: { moduleId: ModuleId }) {
             picked={picked}
             labels={labels}
             pendingLabel={!!pendingLabel}
+            patientLine={[...session.messages].reverse().find((m) => m.role === "npc")?.content}
+            pharmacistLine={[...session.messages].reverse().find((m) => m.role === "user")?.content}
             onPick={(item) => {
               // Khi đang cầm nhãn HDSD → click hộp thuốc = dán nhãn cho loại đó
               if (pendingLabel) {
