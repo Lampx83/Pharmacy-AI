@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
   OrbitControls,
@@ -21,6 +21,9 @@ const NULL_RAYCAST = () => null as unknown as void;
 
 useGLTF.preload("/models/patient.glb");
 useGLTF.preload("/models/pharmacist.glb");
+useGLTF.preload("/models/plant.glb");
+useGLTF.preload("/models/sofa.glb");
+useGLTF.preload("/models/fridge.glb");
 
 interface Props {
   picked: string[];
@@ -1875,6 +1878,46 @@ function Person({
   );
 }
 
+/* ===================== ModelObject (GLB tĩnh) =====================
+   Cho cây cảnh, ghế chờ, tủ lạnh, v.v. Load GLB qua useGLTF + clone scene
+   để có thể đặt nhiều instance cùng URL mà không conflict. */
+function ModelObject({
+  url,
+  position,
+  rotationY = 0,
+  scale = 1,
+  raycast = false
+}: {
+  url: string;
+  position: [number, number, number];
+  rotationY?: number;
+  scale?: number | [number, number, number];
+  raycast?: boolean;
+}) {
+  const { scene } = useGLTF(url) as any;
+  const cloned = useMemo(() => scene.clone(true), [scene]);
+
+  useEffect(() => {
+    cloned.traverse((o: any) => {
+      if (o.isMesh) {
+        o.castShadow = true;
+        o.receiveShadow = true;
+        if (!raycast) o.raycast = NULL_RAYCAST;
+      }
+    });
+  }, [cloned, raycast]);
+
+  return (
+    <group
+      position={position}
+      rotation={[0, rotationY, 0]}
+      scale={typeof scale === "number" ? [scale, scale, scale] : scale}
+    >
+      <primitive object={cloned} />
+    </group>
+  );
+}
+
 /* ===================== ModelCharacter (GLB) =====================
    Tải model GLB người Việt thật từ public/models/* (rigged, có thể có animation).
    Có nhãn tên + bubble truyện tranh anchor đúng đỉnh đầu. */
@@ -2204,14 +2247,19 @@ export default function GppScene({
           bubbleY={1.95}
         />
 
-        {/* Tủ lạnh vắc-xin bên phải */}
-        <VaccineFridge position={[5.5, -1.0, -0.5]} />
+        {/* Tủ lạnh vắc-xin (model commercial fridge của Khronos) */}
+        <ModelObject url="/models/fridge.glb" position={[5.5, -1.0, -0.5]} rotationY={-Math.PI / 2} scale={1.5} />
+        <Text position={[5.5, 1.1, -0.2]} fontSize={0.08} color="#0f766e" anchorX="center">
+          TỦ LẠNH VẮC-XIN 2–8°C
+        </Text>
         {/* Cây xanh trang trí */}
-        <Plant position={[-5.8, -1.0, 0.5]} />
-        <Plant position={[5.0, -1.0, 2.45]} />
+        {/* Cây cảnh PBR (Khronos DiffuseTransmissionPlant) */}
+        <ModelObject url="/models/plant.glb" position={[-5.8, -1.0, 0.5]} scale={1.6} />
+        <ModelObject url="/models/plant.glb" position={[5.0, -1.0, 2.45]} scale={1.4} rotationY={0.7} />
         {/* Ghế chờ khách hàng */}
-        <WaitingChair position={[-3.0, -1.0, 4.45]} />
-        <WaitingChair position={[3.0, -1.0, 4.45]} />
+        {/* Ghế chờ – sofa Khronos GlamVelvetSofa */}
+        <ModelObject url="/models/sofa.glb" position={[-2.6, -1.0, 4.6]} rotationY={Math.PI} scale={1.4} />
+        <ModelObject url="/models/sofa.glb" position={[2.6, -1.0, 4.6]} rotationY={Math.PI} scale={1.4} />
         {/* Điều hoà */}
         <ACUnit position={[0, 4.9, -1.3]} />
 
