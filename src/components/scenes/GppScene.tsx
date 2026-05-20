@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
   OrbitControls,
@@ -9,13 +9,18 @@ import {
   ContactShadows,
   SoftShadows,
   MeshReflectorMaterial,
-  Html
+  Html,
+  useGLTF,
+  useAnimations
 } from "@react-three/drei";
 import type * as THREE from "three";
 import { DRUGS, type DrugSpec } from "@/lib/catalog/gpp";
 import { TIMING_LABEL, type HdsdLabel } from "@/lib/labels/hdsd";
 
 const NULL_RAYCAST = () => null as unknown as void;
+
+useGLTF.preload("/models/patient.glb");
+useGLTF.preload("/models/pharmacist.glb");
 
 interface Props {
   picked: string[];
@@ -1870,6 +1875,89 @@ function Person({
   );
 }
 
+/* ===================== ModelCharacter (GLB) =====================
+   Tải model GLB người Việt thật từ public/models/* (rigged, có thể có animation).
+   Có nhãn tên + bubble truyện tranh anchor đúng đỉnh đầu. */
+function ModelCharacter({
+  url,
+  position,
+  rotationY = 0,
+  scale = 1,
+  label,
+  labelColor = "#0f172a",
+  speech,
+  bubbleColor = "#ffffff",
+  bubbleAccent = "#fbbf24",
+  bubbleY = 1.95
+}: {
+  url: string;
+  position: [number, number, number];
+  rotationY?: number;
+  scale?: number;
+  label: string;
+  labelColor?: string;
+  speech?: string;
+  bubbleColor?: string;
+  bubbleAccent?: string;
+  bubbleY?: number;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const { scene, animations } = useGLTF(url) as any;
+  const { actions } = useAnimations(animations || [], groupRef);
+
+  useEffect(() => {
+    if (!actions) return;
+    const keys = Object.keys(actions);
+    if (!keys.length) return;
+    const idle = actions[keys[0]];
+    idle?.reset().fadeIn(0.4).play();
+    return () => {
+      idle?.fadeOut(0.2).stop();
+    };
+  }, [actions]);
+
+  // bóng đổ trên các mesh
+  useEffect(() => {
+    if (!scene) return;
+    scene.traverse((o: any) => {
+      if (o.isMesh) {
+        o.castShadow = true;
+        o.receiveShadow = true;
+        o.raycast = NULL_RAYCAST;
+      }
+    });
+  }, [scene]);
+
+  return (
+    <group ref={groupRef} position={position} rotation={[0, rotationY, 0]} scale={scale}>
+      <primitive object={scene} />
+      <Text
+        position={[0, -0.05, 0.45]}
+        fontSize={0.085}
+        color={labelColor}
+        outlineColor="#ffffff"
+        outlineWidth={0.01}
+        anchorX="center"
+      >
+        {label}
+      </Text>
+      {speech && (
+        <Html
+          position={[0, bubbleY, 0]}
+          distanceFactor={5}
+          zIndexRange={[20, 0]}
+          pointerEvents="none"
+          style={{ pointerEvents: "none" }}
+        >
+          <div style={{ transform: "translate(-50%, -100%)" }}>
+            <ComicBubble text={speech} fill={bubbleColor} accent={bubbleAccent} />
+          </div>
+        </Html>
+      )}
+    </group>
+  );
+}
+
 /* Bubble truyện tranh:
    - Rộng ngang (maxWidth 380), font comic, viền đen 3px, đổ bóng hard 6px
    - Đuôi NGẮN (~18-22px) — mép dưới div được anchor cách đỉnh đầu chỉ vài pixel
@@ -2088,41 +2176,32 @@ export default function GppScene({
           });
         })}
 
-        {/* Bệnh nhân (đứng trước quầy, nữ tóc dài, áo hồng) — quay MẶT VỀ dược sĩ */}
-        <Person
+        {/* Bệnh nhân — model người Việt thật (TranThiNgocTham.glb) */}
+        <ModelCharacter
+          url="/models/patient.glb"
           position={[-1.4, -1.0, 3.85]}
           rotationY={Math.atan2(0.6 - -1.4, 0.85 - 3.85)}
-          shirtColor="#f472b6"
-          pantsColor="#1e3a8a"
-          hairColor="#0f172a"
-          skinColor="#fde68a"
-          ponytail
+          scale={1.0}
           label="Khách hàng"
           labelColor="#9d174d"
           speech={patientLine && patientLine.length > 140 ? patientLine.slice(0, 140) + "…" : patientLine}
           bubbleColor="#fef9c3"
           bubbleAccent="#f59e0b"
-          bobSpeed={1.3}
-          bobAmount={0.012}
+          bubbleY={1.95}
         />
 
-        {/* Dược sĩ (đứng sau quầy, áo blu, kính, ống nghe) — quay MẶT VỀ bệnh nhân */}
-        <Person
+        {/* Dược sĩ — model người Việt thật (Thanh.glb) */}
+        <ModelCharacter
+          url="/models/pharmacist.glb"
           position={[0.6, -1.0, 0.85]}
           rotationY={Math.atan2(-1.4 - 0.6, 3.85 - 0.85)}
-          shirtColor="#a7f3d0"
-          pantsColor="#0f172a"
-          hairColor="#1c1917"
-          skinColor="#fef3c7"
+          scale={1.0}
           label="Dược sĩ (bạn)"
           labelColor="#047857"
           speech={pharmacistLine && pharmacistLine.length > 140 ? pharmacistLine.slice(0, 140) + "…" : pharmacistLine}
           bubbleColor="#ecfdf5"
           bubbleAccent="#10b981"
-          hasCoat
-          glasses
-          bobSpeed={1.0}
-          bobAmount={0.010}
+          bubbleY={1.95}
         />
 
         {/* Tủ lạnh vắc-xin bên phải */}
