@@ -1,0 +1,46 @@
+# docker-compose.yml — dùng cho Portainer Stack
+#
+# Cách 1 (build trên server): để nguyên `build: .` bên dưới, Portainer sẽ build
+# image trực tiếp trên server từ source code (cần upload source / git pull về
+# /opt/pharmacy-ai trước, hoặc dùng Portainer "Repository" để Portainer tự clone).
+#
+# Cách 2 (pull từ registry): comment block `build` và bỏ comment dòng `image:`
+# trỏ tới image bạn đã đẩy lên Docker Hub / GitHub Container Registry.
+
+services:
+  pharmacy-ai:
+    container_name: pharmacy-ai
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # image: ghcr.io/<your-org>/pharmacy-ai:latest   # nếu kéo từ registry
+    image: pharmacy-ai:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      # Bỏ trống → NPC dùng stub rule-based; có key → dùng OpenAI thật.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    # Tuỳ chọn: gắn vào network của reverse-proxy (Traefik / Caddy) nếu có.
+    # networks:
+    #   - web
+    labels:
+      # Ví dụ label cho Traefik (bỏ comment nếu dùng):
+      # - "traefik.enable=true"
+      # - "traefik.http.routers.pharmacy.rule=Host(`pharmacy.example.com`)"
+      # - "traefik.http.routers.pharmacy.entrypoints=websecure"
+      # - "traefik.http.routers.pharmacy.tls.certresolver=le"
+      # - "traefik.http.services.pharmacy.loadbalancer.server.port=3000"
+      app: pharmacy-ai
+
+# networks:
+#   web:
+#     external: true
