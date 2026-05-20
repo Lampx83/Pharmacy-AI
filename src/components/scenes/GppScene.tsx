@@ -2370,34 +2370,10 @@ export default function GppScene({
           });
         })}
 
-        {/* Bệnh nhân — Trần Thị Ngọc Thắm (người Việt thật, đứng yên không nhảy) */}
-        <ModelCharacter
-          url="/models/patient.glb"
-          position={[-1.4, -1.0, 3.85]}
-          rotationY={Math.atan2(0.6 - -1.4, 0.85 - 3.85)}
-          scale={1.0}
-          label="Khách hàng"
-          labelColor="#9d174d"
-          speech={patientLine && patientLine.length > 140 ? patientLine.slice(0, 140) + "…" : patientLine}
-          bubbleColor="#fef9c3"
-          bubbleAccent="#f59e0b"
-          bubbleY={1.85}
-        />
-
-        {/* Dược sĩ — Thanh (người Việt) + lab coat overlay */}
-        <ModelCharacter
-          url="/models/pharmacist.glb"
-          position={[0.6, -1.0, 0.85]}
-          rotationY={Math.atan2(-1.4 - 0.6, 3.85 - 0.85)}
-          scale={1.0}
-          label="Dược sĩ (bạn)"
-          labelColor="#047857"
-          speech={pharmacistLine && pharmacistLine.length > 140 ? pharmacistLine.slice(0, 140) + "…" : pharmacistLine}
-          bubbleColor="#ecfdf5"
-          bubbleAccent="#10b981"
-          bubbleY={1.95}
-          wearCoat
-        />
+        {/* 2 nhân vật bệnh nhân + dược sĩ đã được gỡ theo yêu cầu.
+            Component ModelCharacter và file GLB vẫn giữ trong repo
+            (public/models/patient.glb, pharmacist.glb) để có thể bật lại
+            khi tìm được model phù hợp hơn. */}
 
         {/* Tủ lạnh vắc-xin (model commercial fridge của Khronos) */}
         <ModelObject url="/models/fridge.glb" position={[5.5, -1.0, -0.5]} rotationY={-Math.PI / 2} scale={1.5} />
