@@ -19,10 +19,9 @@ import { TIMING_LABEL, type HdsdLabel } from "@/lib/labels/hdsd";
 
 const NULL_RAYCAST = () => null as unknown as void;
 
-useGLTF.preload("/models/patient.glb");
-useGLTF.preload("/models/pharmacist.glb");
+useGLTF.preload("/models/michelle.glb");
+useGLTF.preload("/models/soldier.glb");
 useGLTF.preload("/models/plant.glb");
-useGLTF.preload("/models/sofa.glb");
 useGLTF.preload("/models/fridge.glb");
 
 interface Props {
@@ -1378,6 +1377,59 @@ function WaitingChair({ position }: { position: [number, number, number] }) {
   );
 }
 
+/* Quạt trần XOAY – animation thật (useFrame) cho sinh động */
+function CeilingFan({ position }: { position: [number, number, number] }) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame((_, dt) => {
+    if (ref.current) ref.current.rotation.y += dt * 4.5;
+  });
+  return (
+    <group position={position}>
+      {/* thanh treo từ trần xuống */}
+      <mesh position={[0, 0.18, 0]}>
+        <cylinderGeometry args={[0.025, 0.025, 0.36, 12]} />
+        <meshStandardMaterial color="#94a3b8" metalness={0.85} roughness={0.25} />
+      </mesh>
+      {/* hub động cơ */}
+      <mesh>
+        <cylinderGeometry args={[0.13, 0.16, 0.10, 24]} />
+        <meshStandardMaterial color="#475569" metalness={0.7} roughness={0.4} />
+      </mesh>
+      <mesh position={[0, 0.07, 0]}>
+        <cylinderGeometry args={[0.14, 0.13, 0.04, 24]} />
+        <meshStandardMaterial color="#cbd5e1" metalness={0.85} roughness={0.25} />
+      </mesh>
+      {/* 4 cánh quạt – group xoay */}
+      <group ref={ref}>
+        {[0, Math.PI / 2, Math.PI, (Math.PI * 3) / 2].map((a, i) => (
+          <group key={i} rotation={[0, a, 0]}>
+            <mesh position={[0.55, -0.02, 0]} rotation={[0.18, 0, 0]} castShadow>
+              <boxGeometry args={[0.85, 0.018, 0.20]} />
+              <meshStandardMaterial color="#f8fafc" roughness={0.6} />
+            </mesh>
+            {/* gân cánh */}
+            <mesh position={[0.55, -0.025, 0]} rotation={[0.18, 0, 0]}>
+              <boxGeometry args={[0.85, 0.002, 0.015]} />
+              <meshStandardMaterial color="#cbd5e1" />
+            </mesh>
+          </group>
+        ))}
+      </group>
+      {/* chao đèn dưới hub */}
+      <mesh position={[0, -0.12, 0]}>
+        <sphereGeometry args={[0.09, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshStandardMaterial
+          color="#fef9c3"
+          emissive="#fde68a"
+          emissiveIntensity={0.55}
+          transparent
+          opacity={0.85}
+        />
+      </mesh>
+    </group>
+  );
+}
+
 function CeilingLight({ position }: { position: [number, number, number] }) {
   return (
     <group position={position}>
@@ -2143,8 +2195,10 @@ export default function GppScene({
 
         {/* đèn LED trên trần */}
         <CeilingLight position={[-2.5, 5.95, 1.5]} />
-        <CeilingLight position={[0, 5.95, 1.5]} />
         <CeilingLight position={[2.5, 5.95, 1.5]} />
+
+        {/* Quạt trần xoay – chính giữa */}
+        <CeilingFan position={[0, 5.55, 2.5]} />
 
         {/* Biển chữ thập xanh trên đầu cabinet */}
         <CrossSign position={[-3.5, 4.6, -1.25]} />
@@ -2219,9 +2273,9 @@ export default function GppScene({
           });
         })}
 
-        {/* Bệnh nhân — model người Việt thật (TranThiNgocTham.glb) */}
+        {/* Bệnh nhân — Michelle (Mixamo, có idle animation, dáng đứng tự nhiên) */}
         <ModelCharacter
-          url="/models/patient.glb"
+          url="/models/michelle.glb"
           position={[-1.4, -1.0, 3.85]}
           rotationY={Math.atan2(0.6 - -1.4, 0.85 - 3.85)}
           scale={1.0}
@@ -2230,12 +2284,12 @@ export default function GppScene({
           speech={patientLine && patientLine.length > 140 ? patientLine.slice(0, 140) + "…" : patientLine}
           bubbleColor="#fef9c3"
           bubbleAccent="#f59e0b"
-          bubbleY={1.95}
+          bubbleY={1.85}
         />
 
-        {/* Dược sĩ — model người Việt thật (Thanh.glb) */}
+        {/* Dược sĩ — Soldier (Mixamo, có idle animation, dáng tự nhiên) */}
         <ModelCharacter
-          url="/models/pharmacist.glb"
+          url="/models/soldier.glb"
           position={[0.6, -1.0, 0.85]}
           rotationY={Math.atan2(-1.4 - 0.6, 3.85 - 0.85)}
           scale={1.0}
@@ -2257,9 +2311,9 @@ export default function GppScene({
         <ModelObject url="/models/plant.glb" position={[-5.8, -1.0, 0.5]} scale={1.6} />
         <ModelObject url="/models/plant.glb" position={[5.0, -1.0, 2.45]} scale={1.4} rotationY={0.7} />
         {/* Ghế chờ khách hàng */}
-        {/* Ghế chờ – sofa Khronos GlamVelvetSofa */}
-        <ModelObject url="/models/sofa.glb" position={[-2.6, -1.0, 4.6]} rotationY={Math.PI} scale={1.4} />
-        <ModelObject url="/models/sofa.glb" position={[2.6, -1.0, 4.6]} rotationY={Math.PI} scale={1.4} />
+        {/* Ghế chờ kiểu bệnh viện – khung kim loại + đệm vinyl xanh */}
+        <WaitingChair position={[-3.0, -1.0, 4.45]} />
+        <WaitingChair position={[3.0, -1.0, 4.45]} />
         {/* Điều hoà */}
         <ACUnit position={[0, 4.9, -1.3]} />
 
