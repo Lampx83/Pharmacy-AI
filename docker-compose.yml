@@ -17,7 +17,8 @@ services:
     image: pharmacy-ai:latest
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      # Host:Container — truy cập FE qua http://<server-ip>:8040
+      - "8040:3000"
     environment:
       NODE_ENV: production
       # Bỏ trống → NPC dùng stub rule-based; có key → dùng OpenAI thật.

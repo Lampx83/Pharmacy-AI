@@ -8,7 +8,7 @@ có `HEALTHCHECK` sẵn vào `GET /api/health`.
 - Docker Engine ≥ 24
 - Portainer CE/BE ≥ 2.19
 - RAM khả dụng cho container: **512 MB** là đủ; khuyến nghị 1 GB
-- Port `3000` mở (hoặc dùng reverse-proxy + tên miền — xem mục cuối)
+- Port `8040` mở (hoặc dùng reverse-proxy + tên miền — xem mục cuối)
 - (Tùy chọn) `OPENAI_API_KEY` nếu muốn NPC dùng LLM thật
 
 ---
@@ -33,7 +33,7 @@ có `HEALTHCHECK` sẵn vào `GET /api/health`.
    - chạy `docker build` theo `Dockerfile`,
    - khởi động container.
 7. Đợi ~2–3 phút lần đầu. Kiểm tra **Containers** → `pharmacy-ai`: cột Status hiện `healthy`.
-8. Truy cập `http://<server-ip>:3000`.
+8. Truy cập `http://<server-ip>:8040`.
 
 > Khi push code mới lên Git: vào stack `pharmacy-ai` → **Pull and redeploy** → Portainer rebuild lại image.
 
@@ -68,7 +68,7 @@ Server chỉ cần đăng nhập registry: **Registries → Add registry**.
 | `OPENAI_API_KEY` | Không | (trống) | Có → NPC dùng OpenAI; trống → stub rule-based |
 | `OPENAI_MODEL` | Không | `gpt-4o-mini` | Đổi sang `gpt-4o`, `gpt-4.1-mini`… nếu cần |
 | `NODE_ENV` | – | `production` | Đã set sẵn trong Dockerfile |
-| `PORT` | – | `3000` | Đổi port nội bộ; đồng bộ với `EXPOSE` & `ports:` |
+| `PORT` | – | `3000` | Port lắng nghe **bên trong container**. Đổi cũng cần sửa `EXPOSE` & vế phải `ports:`. Vế trái `8040` là port host. |
 
 Trong Portainer: ở phần Environment variables của Stack, dán dạng `KEY=VALUE`,
 mỗi dòng một biến. Compose đã có `${OPENAI_API_KEY:-}` nên trống cũng OK.
@@ -91,7 +91,7 @@ labels:
   - "traefik.http.services.pharmacy.loadbalancer.server.port=3000"
 ```
 
-Và bỏ ánh xạ `ports: - "3000:3000"` (chỉ Traefik cần thấy).
+Và bỏ ánh xạ `ports: - "8040:3000"` (chỉ Traefik cần thấy).
 
 ### Caddy (đơn giản hơn)
 Tạo file `Caddyfile` trên server:
@@ -110,7 +110,7 @@ server {
   ssl_certificate_key /etc/letsencrypt/live/pharmacy.example.com/privkey.pem;
 
   location / {
-    proxy_pass         http://127.0.0.1:3000;
+    proxy_pass         http://127.0.0.1:8040;
     proxy_http_version 1.1;
     proxy_set_header   Host              $host;
     proxy_set_header   X-Real-IP         $remote_addr;
@@ -160,7 +160,7 @@ git clone https://github.com/<your-org>/pharmacy-ai && cd pharmacy-ai
 docker compose build
 docker compose up -d
 docker compose ps
-curl -fsS http://localhost:3000/api/health
+curl -fsS http://localhost:8040/api/health
 ```
 
 Output mong đợi:
@@ -178,4 +178,4 @@ Output mong đợi:
 | 502 từ Traefik | Container chưa join network `web` | Bỏ comment `networks: [web]` và đảm bảo network external đã tồn tại |
 | `npm ci` fail khi build | Lệch `package-lock.json` | Trên máy dev chạy `npm install` rồi commit lại `package-lock.json` |
 | NPC luôn dùng stub | Không có `OPENAI_API_KEY` | Thêm env trong Stack → redeploy |
-| Port 3000 conflict | Đã có service khác | Đổi `ports: "8080:3000"` |
+| Port 8040 conflict | Đã có service khác chiếm | Đổi vế trái: `ports: "9040:3000"` rồi truy cập qua `:9040` |
