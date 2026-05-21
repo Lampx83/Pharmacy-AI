@@ -818,7 +818,8 @@ function ConsultDesk({ position }: { position: [number, number, number] }) {
         <cylinderGeometry args={[0.22, 0.22, 0.04, 24]} />
         <meshStandardMaterial color="#92400e" />
       </mesh>
-      {/* Chỉ giữ 1 ghế phía TỦ LẠNH (z dương, quay mặt vào bàn tròn) */}
+      {/* Ghế đối diện nhau: 1 quay mặt +z, 1 quay -z */}
+      <ConsultChair position={[0, 0, -0.8]} rotationY={0} />
       <ConsultChair position={[0, 0, 0.8]} rotationY={Math.PI} />
     </group>
   );
@@ -1337,11 +1338,9 @@ export default function GppScene({
 
         {/* === Dược sĩ + Bệnh nhân: tạm ẩn, chờ model mới === */}
 
-        {/* === 2 hàng ghế chờ — quay vào trong === */}
-        {/* Hàng trái sát tường trái, lưng dựa vào tường (-x), mặt ghế quay sang phải (+x) → rotationY = +π/2 */}
+        {/* === Ghế chờ — chỉ giữ hàng bên TỦ LẠNH (trái) ===
+            Hàng bên phải nằm cạnh dãy tủ thuốc nên bỏ theo yêu cầu. */}
         <WaitingChair position={[-ROOM_W / 2 + 0.4, 0, 2.8]} rotationY={Math.PI / 2} />
-        {/* Hàng phải sát tường phải, lưng dựa vào tường (+x), mặt quay sang trái (-x) → rotationY = -π/2 */}
-        <WaitingChair position={[ROOM_W / 2 - 0.4, 0, 2.8]} rotationY={-Math.PI / 2} />
 
         {/* === 2 cây cảnh — đặt phía SAU ghế chờ (xa quầy), không cản đường vào === */}
         <AnimatedPlant position={[-ROOM_W / 2 + 0.4, 0, 3.85]} scale={1.4} phase={0} />
