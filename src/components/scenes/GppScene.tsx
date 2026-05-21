@@ -971,10 +971,13 @@ function PosComputer({ onClick }: { onClick: () => void }) {
 /* ============= Khay dụng cụ + ra lẻ thuốc ============= */
 function ToolTray({ onClick }: { onClick: () => void }) {
   const [hovered, setHovered] = useState(false);
-  const TW = 0.95; // tray width
+  const TW = 0.95; // tray width  (sẽ thu theo scale group)
   const TD = 0.42; // tray depth
+  // Toàn bộ khay co lại 75% → ~0.71 × 0.32 m, mỏng hơn, và đáy khay tiếp xúc mặt quầy
+  // (group_y chọn sao cho mặt dưới của tray-mesh thickness 0.02 nằm trên COUNTER_H).
+  const TT_SCALE = 0.75;
   return (
-    <group position={[TOOLTRAY_X, COUNTER_H + 0.04, COUNTER_Z - 0.05]}>
+    <group position={[TOOLTRAY_X, COUNTER_H + 0.01 * TT_SCALE, COUNTER_Z - 0.05]} scale={TT_SCALE}>
       {/* === Khay nền — click vào để soạn nhãn HDSD === */}
       <group
         onPointerOver={() => setHovered(true)}
