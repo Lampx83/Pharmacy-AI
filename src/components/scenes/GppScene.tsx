@@ -543,7 +543,7 @@ function Cabinet({
             const bw = st.w * fit;
             const bh = st.h * fit;
             const cx = cursor + bw / 2;
-            const cy = shelfTopY + bh / 2 + 0.002;
+            const cy = shelfTopY + bh / 2;
             const cz = zFront - st.d * fit * 0.5; // gốc của stack: hộp đầu (i=0) hơi đẩy về trước
             cursor += bw + gap * fit;
             const isPicked = picked.includes(drug.id);
@@ -652,7 +652,7 @@ function FrontCounter({
                 const dx = (col - (COLS - 1) / 2) * colPitch;
                 const dz = (row - (rows - 1) / 2) * dzStep;
                 const st = getBoxStyle(drug);
-                const baseY = COUNTER_H + (st.h * CTR_SCALE) / 2 + 0.002;
+                const baseY = COUNTER_H + (st.h * CTR_SCALE) / 2;
                 return (
                   <DrugStack
                     key={drug.id}
@@ -780,12 +780,9 @@ function PosComputer({ onClick }: { onClick: () => void }) {
         </Text>
       </group>
 
-      {/* ===== Màn phụ CFD cho KHÁCH — mặt hướng ra ngoài (+z) ===== */}
-      <group position={[0.32, 0.5, 0.1]}>
-        <mesh position={[-0.18, -0.1, 0]} castShadow>
-          <boxGeometry args={[0.04, 0.18, 0.04]} />
-          <meshStandardMaterial color="#0f172a" />
-        </mesh>
+      {/* ===== Màn phụ CFD cho KHÁCH — đặt sát phía sau màn chính, cùng trục x=0
+              & cùng y với màn chính để 2 màn ăn khớp lưng-vào-lưng ===== */}
+      <group position={[0, 0.6, 0.08]} rotation={[0.05, 0, 0]}>
         <mesh castShadow>
           <boxGeometry args={[0.56, 0.4, 0.05]} />
           <meshStandardMaterial color="#0a0f1c" metalness={0.55} roughness={0.4} />
@@ -1184,7 +1181,8 @@ function FridgeDoor({
   useFrame(() => {
     const g = groupRef.current;
     if (!g) return;
-    const target = isOpen ? -Math.PI / 2.2 : 0;
+    // bản lề ở mép phải → mở ra ngoài (về phía +z, khán giả) bằng cách quay +π/2.2
+    const target = isOpen ? Math.PI / 2.2 : 0;
     g.rotation.y += (target - g.rotation.y) * 0.18;
   });
   return (
@@ -1737,27 +1735,27 @@ export default function GppScene({
         <ToolTray onClick={onOpenLabelEditor} />
         <PosComputer onClick={onOpenPos} />
 
-        {/* === Máy quét barcode + máy in hoá đơn cạnh POS === */}
+        {/* === Máy quét barcode + máy in hoá đơn cạnh POS — đặt sát mặt bàn === */}
         <Suspense fallback={null}>
           <TrayTool
             url="/models/barcode_scanner.glb"
-            position={[0.85, COUNTER_H + 0.05, COUNTER_Z - 0.15]}
+            position={[0.85, COUNTER_H, COUNTER_Z - 0.15]}
             rotationY={-Math.PI / 5}
             targetSize={0.22}
           />
           <TrayTool
             url="/models/receipt_printer.glb"
-            position={[1.0, COUNTER_H + 0.05, COUNTER_Z + 0.18]}
+            position={[1.0, COUNTER_H, COUNTER_Z + 0.18]}
             rotationY={Math.PI}
             targetSize={0.24}
           />
         </Suspense>
 
-        {/* === Tài liệu tra cứu (Dược thư 2018) — nằm phẳng trên mặt bàn === */}
+        {/* === Tài liệu tra cứu (Dược thư 2018) — nằm ngang trên mặt bàn === */}
         <Suspense fallback={null}>
           <TrayTool
             url="/models/book.glb"
-            position={[-0.58, COUNTER_H + 0.05, COUNTER_Z - 0.08]}
+            position={[-0.58, COUNTER_H, COUNTER_Z - 0.08]}
             rotationX={-Math.PI / 2}
             rotationY={Math.PI / 8}
             targetSize={0.26}
