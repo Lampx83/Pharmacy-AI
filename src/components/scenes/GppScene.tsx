@@ -674,16 +674,27 @@ function ToolTray({ onClick }: { onClick: () => void }) {
 function TrayTool({
   url,
   position,
+  rotationX = 0,
   rotationY = 0,
+  rotationZ = 0,
   targetSize
 }: {
   url: string;
   position: [number, number, number];
+  rotationX?: number;
   rotationY?: number;
+  rotationZ?: number;
   targetSize: number;
 }) {
   const { scene } = useGLTF(url) as any;
-  const cloned = useMemo(() => scene.clone(true), [scene]);
+  // Apply rotation INSIDE the clone before measuring bbox, so vật thể nằm/đứng đúng
+  // và y-offset luôn ground sát mặt bàn dù xoay theo trục bất kỳ.
+  const cloned = useMemo(() => {
+    const s = scene.clone(true);
+    s.rotation.set(rotationX, rotationY, rotationZ);
+    s.updateMatrixWorld(true);
+    return s;
+  }, [scene, rotationX, rotationY, rotationZ]);
   const [scale, yOffset] = useMemo(() => {
     const box = new THREE_BOX3();
     box.setFromObject(cloned);
@@ -702,7 +713,7 @@ function TrayTool({
     });
   }, [cloned]);
   return (
-    <group position={[position[0], position[1] + yOffset, position[2]]} rotation={[0, rotationY, 0]} scale={scale}>
+    <group position={[position[0], position[1] + yOffset, position[2]]} scale={scale}>
       <primitive object={cloned} />
     </group>
   );
@@ -931,13 +942,84 @@ function FridgeDoor({
   );
 }
 
-/* ============= Tủ lạnh cửa kín (closed-door, không xuyên thấu) ============= */
+/* ============= Một mặt hàng bên trong tủ lạnh — click để bay ra khay ============= */
+type FridgeStock = {
+  id: string;
+  label: string;
+  color: string;
+  compartment: "top" | "bottom";
+  localPos: [number, number, number]; // local của fridge group
+};
+function FridgeItem({
+  stock,
+  picked,
+  targetPos,
+  onPick
+}: {
+  stock: FridgeStock;
+  picked: boolean;
+  targetPos: [number, number, number];
+  onPick: () => void;
+}) {
+  const ref = useRef<THREE.Group>(null);
+  const [hovered, setHovered] = useState(false);
+  useFrame(() => {
+    const g = ref.current;
+    if (!g) return;
+    const dst = picked ? targetPos : stock.localPos;
+    g.position.x += (dst[0] - g.position.x) * 0.15;
+    g.position.y += (dst[1] - g.position.y) * 0.15;
+    g.position.z += (dst[2] - g.position.z) * 0.15;
+  });
+  return (
+    <group
+      ref={ref}
+      position={stock.localPos}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        setHovered(true);
+      }}
+      onPointerOut={() => setHovered(false)}
+      onClick={(e) => {
+        e.stopPropagation();
+        onPick();
+      }}
+    >
+      <mesh castShadow>
+        <boxGeometry args={[0.08, 0.11, 0.06]} />
+        <meshStandardMaterial color={hovered ? "#fef9c3" : stock.color} roughness={0.5} />
+      </mesh>
+      {/* nhãn nhỏ phía trước */}
+      <mesh position={[0, 0.01, 0.031]}>
+        <planeGeometry args={[0.075, 0.04]} />
+        <meshStandardMaterial color="#ffffff" />
+      </mesh>
+      <Text
+        position={[0, 0.01, 0.0321]}
+        fontSize={0.014}
+        color="#0f172a"
+        anchorX="center"
+        maxWidth={0.07}
+      >
+        {stock.label}
+      </Text>
+    </group>
+  );
+}
+
+/* ============= Tủ lạnh rỗng (có lòng) — cửa mở thấy hàng bên trong ============= */
 function ClosedFridge({
   position,
-  rotationY = 0
+  rotationY = 0,
+  picked,
+  onPick,
+  pickSlotPos
 }: {
   position: [number, number, number];
   rotationY?: number;
+  picked: string[];
+  onPick: (item: { id: string; isAntibiotic?: boolean; isHazardPregnancy?: boolean }) => void;
+  pickSlotPos: (idx: number) => [number, number, number];
 }) {
   const [topOpen, setTopOpen] = useState(false);
   const [bottomOpen, setBottomOpen] = useState(false);
@@ -946,24 +1028,72 @@ function ClosedFridge({
   const BOTTOM_Y = 0.05 + BOTTOM_H / 2; // 0.55
   const TOP_H = 0.6;
   const TOP_Y = 1.05 + TOP_H / 2; // 1.35
+
+  // 5 mặt hàng cold-chain bên trong tủ
+  const stocks: FridgeStock[] = useMemo(
+    () => [
+      // Ngăn trên (đông) — vaccine
+      { id: "frg_vaccine_bcg", label: "Vaccine BCG", color: "#bae6fd", compartment: "top", localPos: [-0.2, 1.25, 0.05] },
+      { id: "frg_vaccine_flu", label: "Cúm mùa", color: "#a7f3d0", compartment: "top", localPos: [0.2, 1.25, 0.05] },
+      // Ngăn dưới — insulin / nhỏ mắt / men vi sinh
+      { id: "frg_insulin", label: "Insulin glargine", color: "#fde68a", compartment: "bottom", localPos: [-0.22, 0.7, 0.05] },
+      { id: "frg_eyedrop", label: "Tobradex 5ml", color: "#ddd6fe", compartment: "bottom", localPos: [0.02, 0.7, 0.05] },
+      { id: "frg_probiotic", label: "Enterogermina", color: "#fecaca", compartment: "bottom", localPos: [0.22, 0.7, 0.05] }
+    ],
+    []
+  );
+
+  // World → local conversion với rotation hiện tại của fridge group
+  const cosR = Math.cos(rotationY);
+  const sinR = Math.sin(rotationY);
+  const localTargetFor = (idx: number): [number, number, number] => {
+    const wt = pickSlotPos(idx);
+    const dx = wt[0] - position[0];
+    const dz = wt[2] - position[2];
+    return [dx * cosR - dz * sinR, wt[1] - position[1], dx * sinR + dz * cosR];
+  };
+
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
-      {/* thân tủ */}
-      <mesh position={[0, 0.85, 0]} castShadow receiveShadow>
-        <boxGeometry args={[0.78, 1.7, 0.7]} />
+      {/* ====== Thân tủ rỗng — dùng 5 vách + giá giữa thay vì khối đặc ====== */}
+      {/* vách trái */}
+      <mesh position={[-0.37, 0.85, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.04, 1.7, 0.7]} />
         <meshStandardMaterial color="#f8fafc" roughness={0.4} metalness={0.05} />
       </mesh>
-      {/* lòng tủ tối (để khi cửa mở thấy bên trong) */}
-      <mesh position={[0, 0.85, 0.355]} receiveShadow>
-        <boxGeometry args={[0.74, 1.6, 0.005]} />
-        <meshStandardMaterial color="#1e293b" roughness={0.9} />
+      {/* vách phải */}
+      <mesh position={[0.37, 0.85, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.04, 1.7, 0.7]} />
+        <meshStandardMaterial color="#f8fafc" roughness={0.4} metalness={0.05} />
       </mesh>
-      {/* viền ngang giữa 2 cửa */}
-      <mesh position={[0, 1.05, 0.355]}>
-        <boxGeometry args={[0.74, 0.02, 0.01]} />
-        <meshStandardMaterial color="#cbd5e1" />
+      {/* vách sau (lòng tủ — tối, phản chiếu nhẹ) */}
+      <mesh position={[0, 0.85, -0.33]} receiveShadow>
+        <boxGeometry args={[0.78, 1.7, 0.04]} />
+        <meshStandardMaterial color="#1e293b" roughness={0.85} />
       </mesh>
-      {/* Cửa trên + cửa dưới — có thể click mở/đóng */}
+      {/* nóc */}
+      <mesh position={[0, 1.68, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.78, 0.04, 0.7]} />
+        <meshStandardMaterial color="#f8fafc" roughness={0.4} />
+      </mesh>
+      {/* đáy lòng */}
+      <mesh position={[0, 0.06, 0]} receiveShadow>
+        <boxGeometry args={[0.74, 0.02, 0.66]} />
+        <meshStandardMaterial color="#cbd5e1" roughness={0.6} />
+      </mesh>
+      {/* giá ngăn giữa */}
+      <mesh position={[0, 1.05, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.74, 0.02, 0.66]} />
+        <meshStandardMaterial color="#cbd5e1" roughness={0.6} />
+      </mesh>
+
+      {/* Đèn LED bên trong khi cửa mở (chỉ là 1 ô sáng nhẹ trên trần lòng tủ) */}
+      <mesh position={[0, 1.66, 0]}>
+        <boxGeometry args={[0.5, 0.02, 0.05]} />
+        <meshStandardMaterial color="#fef9c3" emissive="#fde68a" emissiveIntensity={topOpen || bottomOpen ? 1.4 : 0.2} />
+      </mesh>
+
+      {/* Cửa trên + cửa dưới */}
       <FridgeDoor
         centerY={TOP_Y}
         width={0.74}
@@ -981,7 +1111,23 @@ function ClosedFridge({
         onToggle={() => setBottomOpen((o) => !o)}
         handleHeight={0.45}
       />
-      {/* đèn báo */}
+
+      {/* Hàng bên trong — click để bay ra khay ra lẻ */}
+      {stocks.map((s) => {
+        const idx = picked.indexOf(s.id);
+        const isPicked = idx !== -1;
+        return (
+          <FridgeItem
+            key={s.id}
+            stock={s}
+            picked={isPicked}
+            targetPos={localTargetFor(isPicked ? idx : 0)}
+            onPick={() => onPick({ id: s.id })}
+          />
+        );
+      })}
+
+      {/* đèn báo ngoài */}
       <mesh position={[0.3, 1.66, 0.36]}>
         <circleGeometry args={[0.014, 16]} />
         <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={0.7} />
@@ -1314,24 +1460,25 @@ export default function GppScene({
           />
         </Suspense>
 
-        {/* === 2 tài liệu tra cứu: Dược thư 2018 + MIMS Pharmacy — đặt ở khoảng trống giữa khu trưng bày và khay === */}
+        {/* === Tài liệu tra cứu (Dược thư 2018) — nằm phẳng trên mặt bàn === */}
         <Suspense fallback={null}>
           <TrayTool
             url="/models/book.glb"
-            position={[-0.62, COUNTER_H + 0.05, COUNTER_Z - 0.2]}
-            rotationY={Math.PI / 2.4}
-            targetSize={0.22}
-          />
-          <TrayTool
-            url="/models/book.glb"
-            position={[-0.55, COUNTER_H + 0.05, COUNTER_Z + 0.05]}
-            rotationY={Math.PI / 2.6}
-            targetSize={0.22}
+            position={[-0.58, COUNTER_H + 0.05, COUNTER_Z - 0.08]}
+            rotationX={-Math.PI / 2}
+            rotationY={Math.PI / 8}
+            targetSize={0.26}
           />
         </Suspense>
 
-        {/* === Tủ lạnh cửa kín — kê sát tường trái, mặt cửa quay vào trong (+x) === */}
-        <ClosedFridge position={[-ROOM_W / 2 + 0.36, 0, COUNTER_Z + 0.1]} rotationY={Math.PI / 2} />
+        {/* === Tủ lạnh — kê sát tường trái, mở cửa thấy hàng bên trong, click để lấy ra khay === */}
+        <ClosedFridge
+          position={[-ROOM_W / 2 + 0.36, 0, COUNTER_Z + 0.1]}
+          rotationY={Math.PI / 2}
+          picked={picked}
+          onPick={onPick}
+          pickSlotPos={pickSlotPos}
+        />
 
         {/* === Khu tư vấn riêng: 1 bàn tròn + 2 ghế đối diện === */}
         <ConsultDesk position={[-3.4, 0, -0.4]} />
