@@ -793,8 +793,8 @@ const PICK_TRAY_W = 0.62;     // bề rộng khay
 const PICK_TRAY_D = 0.34;     // độ sâu khay
 const PICK_TRAY_T = 0.022;    // chiều dày khay
 const PICK_TRAY_RIM = 0.01;   // viền nhỏ quanh khay
-// Tâm khay (world coords) — đặt giữa quầy về phía trước, sát mép quầy
-const PICK_TRAY_CX = -0.55;
+// Tâm khay (world coords) — dịch về phía khay dụng cụ (TOOLTRAY_X=0.55) cho gần hơn
+const PICK_TRAY_CX = -0.30;
 const PICK_TRAY_CZ = COUNTER_Z + 0.20;   // ~ 0.20 m phía trước trục quầy
 const PICK_TRAY_TOP_Y = COUNTER_H + PICK_TRAY_T;   // mặt trên khay
 const PICK_TRAY_CY = COUNTER_H + PICK_TRAY_T / 2;  // tâm khối khay (đáy = COUNTER_H)
