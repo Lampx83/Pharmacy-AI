@@ -1328,12 +1328,6 @@ export default function GppScene({
             targetSize={0.22}
           />
         </Suspense>
-        {/* nhãn sách */}
-        <Billboard position={[-0.58, COUNTER_H + 0.32, COUNTER_Z - 0.08]}>
-          <Text fontSize={0.04} color="#0f172a" anchorX="center" outlineColor="#ffffff" outlineWidth={0.005}>
-            📚 Dược thư 2018 · MIMS Pharmacy
-          </Text>
-        </Billboard>
 
         {/* === Tủ lạnh cửa kín — kê sát tường trái, mặt cửa quay vào trong (+x) === */}
         <ClosedFridge position={[-ROOM_W / 2 + 0.36, 0, COUNTER_Z + 0.1]} rotationY={Math.PI / 2} />
