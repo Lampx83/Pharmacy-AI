@@ -102,7 +102,6 @@ const TOOLTRAY_X = 0.2;
 const POS_X = 1.45;
 
 const SHELVES_PER_CAB = 5;
-const DRUGS_PER_SHELF = 3;
 
 /* ============= Hộp thuốc clickable ============= */
 function DrugBox({
@@ -265,15 +264,24 @@ function Cabinet({
         </Text>
       </group>
 
-      {drugs.map((drug, idx) => {
+      {drugs.map((drug, idx, arr) => {
+        // Layout động: chia đều thuốc qua 5 tầng; nếu 1 tầng > 4 hộp thì xếp 2 hàng sâu
+        const total = arr.length;
+        const drugsPerShelf = Math.max(1, Math.ceil(total / SHELVES_PER_CAB));
+        const rowsPerShelf = drugsPerShelf > 4 ? 2 : 1;
+        const colsPerShelf = Math.ceil(drugsPerShelf / rowsPerShelf);
+        const colSpacing = (W - 0.18) / Math.max(colsPerShelf, 1);
         const shelf = idx % SHELVES_PER_CAB;
-        const slot = Math.floor(idx / SHELVES_PER_CAB) % DRUGS_PER_SHELF;
+        const onShelfIdx = Math.floor(idx / SHELVES_PER_CAB);
+        const depthRow = onShelfIdx % rowsPerShelf; // 0 = trước, 1 = sau
+        const col = Math.floor(onShelfIdx / rowsPerShelf);
         // shelf=0 sits on the cabinet floor (top y = 0.08); shelf>=1 sits on the i=shelf-1 plank
-        // (plank center y = 0.1 + shelf*SHELF_H, thickness 0.02 → top y = 0.11 + shelf*SHELF_H)
         const shelfTopY = shelf === 0 ? 0.08 : 0.11 + shelf * SHELF_H;
         const y = shelfTopY + 0.12; // 0.12 = half of DrugBox height (0.24)
-        const x = (slot - (DRUGS_PER_SHELF - 1) / 2) * (W / DRUGS_PER_SHELF);
-        const z = -D / 2 + 0.22;
+        const x = (col - (colsPerShelf - 1) / 2) * colSpacing;
+        const zFront = -D / 2 + 0.22;
+        const zBack  = -D / 2 + 0.40;
+        const z = rowsPerShelf > 1 ? (depthRow === 0 ? zFront : zBack) : zFront;
         const isPicked = picked.includes(drug.id);
         const wt = pickSlotPos(picked.indexOf(drug.id) === -1 ? 0 : picked.indexOf(drug.id));
         // world → local cho group rotated by rotationY quanh trục Y
@@ -334,7 +342,7 @@ function FrontCounter({
       {/* === Khu trưng bày: 3 ngăn chỉ chiếm nửa trái quầy === */}
       {FRONT_SECTIONS.map((sec, sIdx) => {
         const sectionCx = DISPLAY_LEFT_X + SECTION_W / 2 + sIdx * SECTION_W;
-        const drugs = getDrugsByCabinet(sec.id).slice(0, 4);
+        const drugs = getDrugsByCabinet(sec.id);
         return (
           <group key={sec.id} position={[sectionCx, 0, 0]}>
             {/* Vách ngăn giữa các section */}
@@ -359,15 +367,16 @@ function FrontCounter({
             >
               {sec.label}
             </Text>
-            {/* 4 hộp thuốc xếp 2 hàng × 2 cột */}
-            {drugs.map((drug, idx) => {
+            {/* Hộp thuốc xếp dynamic: 2 cột × n hàng để hiện hết toàn bộ thuốc của ngăn */}
+            {drugs.map((drug, idx, arr) => {
               const slotIdx = picked.indexOf(drug.id);
               const wt = pickSlotPos(slotIdx === -1 ? 0 : slotIdx);
-              const col = idx % 2;
-              const row = Math.floor(idx / 2);
-              // Gọn lại: hộp xếp sát hơn, chiếm 0.32 thay vì 0.45 chiều rộng section
-              const dx = (col - 0.5) * (SECTION_W * 0.32);
-              const dz = (row - 0.5) * (COUNTER_D * 0.32);
+              const COLS = 2;
+              const rows = Math.max(1, Math.ceil(arr.length / COLS));
+              const col = idx % COLS;
+              const row = Math.floor(idx / COLS);
+              const dx = (col - (COLS - 1) / 2) * (SECTION_W * 0.45);
+              const dz = (row - (rows - 1) / 2) * (COUNTER_D * 0.78 / rows);
               return (
                 <DrugBox
                   key={drug.id}
@@ -1339,8 +1348,8 @@ function Walls() {
 }
 
 /* ============= Subset thuốc trong scene ============= */
-function pickDisplayDrugs(cabinetId: string, n: number): DrugSpec[] {
-  return getDrugsByCabinet(cabinetId).slice(0, n);
+function pickDisplayDrugs(cabinetId: string): DrugSpec[] {
+  return getDrugsByCabinet(cabinetId);
 }
 
 /* ============= Scene chính ============= */
@@ -1357,11 +1366,11 @@ export default function GppScene({
   const labelCount = Object.keys(labels).length;
 
   const backDrugs = useMemo(
-    () => BACK_CABINETS.map((c) => pickDisplayDrugs(c.id, SHELVES_PER_CAB * DRUGS_PER_SHELF)),
+    () => BACK_CABINETS.map((c) => pickDisplayDrugs(c.id)),
     []
   );
   const sideDrugs = useMemo(
-    () => SIDE_CABINETS.map((c) => pickDisplayDrugs(c.id, SHELVES_PER_CAB * DRUGS_PER_SHELF)),
+    () => SIDE_CABINETS.map((c) => pickDisplayDrugs(c.id)),
     []
   );
 

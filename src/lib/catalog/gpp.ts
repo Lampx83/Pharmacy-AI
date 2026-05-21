@@ -261,22 +261,7 @@ export const ALL_DRUGS: DrugSpec[] = [
   { id: "ped-181", sku: "PED-181", name: "Zyrtec", brand: "Zyrtec", generic: "Zyrtec", strength: "1mg/ml", form: "Siro", category: "Ho cảm", cabinetId: "otc_pain_cold", pack: "1 chai/hộp", retailUnit: "1 chai", barcode: "8930000000000", manufacturer: "—", sdk: "PED-181", isRx: false, groupId: "otc_pain_cold", groupLabel: "GIẢM ĐAU – HẠ SỐT – HO CẢM", groupAccent: "#2563eb", bodyColor: "#eff6ff", textDark: true, boxesPerRow: 3, unitPrice: 45000 },
 ];
 
-// SCENE_DRUGS (subset shown in 3D scene) ---
-export const SCENE_DRUGS: DrugSpec[] = [
-  { id: "gia-116", sku: "GIẢ-116", name: "Paracetamol", brand: "Paracetamol", generic: "Paracetamol", strength: "500 mg", form: "Viên nén", category: "Giảm đau - Hạ sốt", cabinetId: "otc_pain_cold", pack: "Hộp 10 vỉ x 10 viên", retailUnit: "1 vỉ / 1 viên", barcode: "8931344969322", manufacturer: "—", sdk: "GIẢ-116", isRx: false, groupId: "otc_pain_cold", groupLabel: "GIẢM ĐAU – HẠ SỐT – HO CẢM", groupAccent: "#2563eb", bodyColor: "#eff6ff", textDark: true, boxesPerRow: 3, unitPrice: 18000 },
-  { id: "kha-001", sku: "KHÁ-001", name: "Amoxicillin", brand: "Amoxicillin", generic: "Amoxicillin", strength: "500 mg", form: "Viên nang", category: "Kháng sinh", cabinetId: "rx_abx", pack: "Hộp 10 vỉ x 10 viên", retailUnit: "1 vỉ / 1 viên", barcode: "8933413730974", manufacturer: "—", sdk: "KHÁ-001", isRx: true, isAntibiotic: true, groupId: "rx_abx", groupLabel: "KHÁNG SINH (KÊ ĐƠN)", groupAccent: "#dc2626", bodyColor: "#fef2f2", textDark: true, boxesPerRow: 3, unitPrice: 30000 },
-  { id: "ho-028", sku: "HO -028", name: "Tiffy", brand: "Tiffy", generic: "Tiffy", strength: " ", form: "Viên nang", category: "Ho cảm", cabinetId: "otc_pain_cold", pack: "Hộp 10 vỉ x 10 viên", retailUnit: "1 vỉ / 1 viên", barcode: "8933205963993", manufacturer: "—", sdk: "HO -028", isRx: false, groupId: "otc_pain_cold", groupLabel: "GIẢM ĐAU – HẠ SỐT – HO CẢM", groupAccent: "#2563eb", bodyColor: "#eff6ff", textDark: true, boxesPerRow: 3, unitPrice: 30000 },
-  { id: "tie-062", sku: "TIÊ-062", name: "Omeprazol", brand: "Omeprazol", generic: "Omeprazol", strength: "20 mg", form: "Viên nang", category: "Tiêu hóa", cabinetId: "otc_resp_gi", pack: "Hộp 10 vỉ x 10 viên", retailUnit: "1 vỉ / 1 viên", barcode: "8933551438688", manufacturer: "—", sdk: "TIÊ-062", isRx: false, groupId: "otc_resp_gi", groupLabel: "HÔ HẤP – TIÊU HOÁ", groupAccent: "#0d9488", bodyColor: "#ecfdf5", textDark: true, boxesPerRow: 3, unitPrice: 30000 },
-  { id: "tim-040", sku: "TIM-040", name: "Amlodipin", brand: "Amlodipin", generic: "Amlodipin", strength: "5 mg", form: "Viên nén", category: "Tim mạch", cabinetId: "rx_cardio_dm", pack: "Hộp 10 vỉ x 10 viên", retailUnit: "1 vỉ / 1 viên", barcode: "8939562407907", manufacturer: "—", sdk: "TIM-040", isRx: true, groupId: "rx_cardio_dm", groupLabel: "TIM MẠCH – TIỂU ĐƯỜNG (KÊ ĐƠN)", groupAccent: "#ea580c", bodyColor: "#fff7ed", textDark: true, boxesPerRow: 3, unitPrice: 18000 },
-  { id: "dun-104", sku: "DÙN-104", name: "Betadine", brand: "Betadine", generic: "Betadine", strength: "10%", form: "Dung dịch", category: "Dùng ngoài", cabinetId: "front_topical", pack: "1 chai/hộp", retailUnit: "1 đơn vị", barcode: "8931843723936", manufacturer: "—", sdk: "DÙN-104", isRx: false, groupId: "front_topical", groupLabel: "DÙNG NGOÀI", groupAccent: "#7c3aed", bodyColor: "#f5f3ff", textDark: true, boxesPerRow: 3, unitPrice: 30000 },
-];
-
-/**
- * DRUGS = mặc định export = SCENE_DRUGS (subset 6 thuốc đại diện)
- * để giữ tương thích với scene 3D hiện tại.
- * POS và LabelEditor đã chuyển sang ALL_DRUGS để search được toàn bộ 180 SKU.
- */
-export const DRUGS = SCENE_DRUGS;
+export const DRUGS = ALL_DRUGS;
 
 export function getDrug(id: string): DrugSpec | undefined {
   return ALL_DRUGS.find((d) => d.id === id);
