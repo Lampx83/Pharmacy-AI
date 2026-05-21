@@ -236,8 +236,9 @@ function CameraEye({
           <circleGeometry args={[0.012, 16]} />
           <meshBasicMaterial color="#ffffff" />
         </mesh>
-        {/* nhãn dưới (luôn hiện để user biết mắt nào tương ứng đối tượng nào) */}
-        <group position={[0, -0.215, 0.001]}>
+        {/* nhãn ĐẶT BÊN TRÊN mắt — như callout — để mắt có thể nằm sát nóc đối tượng
+            mà nhãn không bị chìm vào trong đối tượng */}
+        <group position={[0, 0.215, 0.001]}>
           <mesh>
             <planeGeometry args={[Math.max(0.34, label.length * 0.044), 0.085]} />
             <meshBasicMaterial color="#0f172a" transparent opacity={hovered ? 0.95 : 0.78} />
@@ -1988,38 +1989,38 @@ export default function GppScene({
 
         <ContactShadows position={[0, 0.001, 0]} opacity={0.45} scale={20} blur={2.5} far={4} />
 
-        {/* === Camera "eyes" — đặt LÊN ĐỈNH từng đối tượng (cao hơn nóc 15-25 cm) === */}
-        {/* Tủ lạnh — nóc tủ y=1.70 */}
+        {/* === Camera "eyes" — đặt sát NÓC từng đối tượng (nhãn hiện phía trên) === */}
+        {/* Tủ lạnh — nóc tủ ở world y=1.70 → mắt ngồi gần như chạm nóc */}
         <CameraEye
-          position={[-ROOM_W / 2 + 0.36, 1.95, COUNTER_Z + 0.1]}
+          position={[-ROOM_W / 2 + 0.36, 1.78, COUNTER_Z + 0.1]}
           label="Tủ lạnh"
           active={cameraPreset === "fridge"}
           onActivate={() => setCameraPreset("fridge")}
         />
-        {/* Quầy giao dịch — mặt quầy y=1.0, POS cao ~1.5, đặt eye cao hơn POS */}
+        {/* Quầy giao dịch — mặt quầy y=1.0, POS cao ~1.5 → mắt ngay trên đỉnh POS */}
         <CameraEye
-          position={[0, 1.85, COUNTER_Z + 0.15]}
+          position={[0.5, 1.60, COUNTER_Z + 0.1]}
           label="Quầy giao dịch"
           active={cameraPreset === "counter"}
           onActivate={() => setCameraPreset("counter")}
         />
-        {/* Dãy tủ thuốc phía sau — nóc label y≈2.47 */}
+        {/* Dãy tủ thuốc phía sau — nóc label box ở world y≈2.47 */}
         <CameraEye
-          position={[0, 2.72, BACK_Z + 0.6]}
+          position={[0, 2.55, BACK_Z + 0.6]}
           label="Dãy tủ sau"
           active={cameraPreset === "back_cabinets"}
           onActivate={() => setCameraPreset("back_cabinets")}
         />
-        {/* Dãy tủ thuốc bên phải — nóc label y≈2.47 */}
+        {/* Dãy tủ thuốc bên phải — nóc label box ở world y≈2.47 */}
         <CameraEye
-          position={[ROOM_W / 2 - 0.65, 2.72, 0.6]}
+          position={[ROOM_W / 2 - 0.6, 2.55, 0.6]}
           label="Tủ bên"
           active={cameraPreset === "side_cabinets"}
           onActivate={() => setCameraPreset("side_cabinets")}
         />
-        {/* Bàn tư vấn — mặt bàn tròn y=0.76 */}
+        {/* Bàn tư vấn — mặt bàn tròn ở world y=0.76 → mắt sát mặt bàn */}
         <CameraEye
-          position={[-3.4, 1.45, -0.4]}
+          position={[-3.4, 0.95, -0.4]}
           label="Bàn tư vấn"
           active={cameraPreset === "consult"}
           onActivate={() => setCameraPreset("consult")}
