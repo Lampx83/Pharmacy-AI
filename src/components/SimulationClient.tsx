@@ -191,7 +191,12 @@ export default function SimulationClient({ moduleId }: { moduleId: ModuleId }) {
                 }
                 return;
               }
-              if (picked.includes(item.id)) return;
+              // Nếu thuốc đã trên khay → click lần nữa để TRẢ về kệ.
+              if (picked.includes(item.id)) {
+                setPicked(picked.filter((id) => id !== item.id));
+                postAction("unpick_box", { drug: item.id });
+                return;
+              }
               const next = [...picked, item.id];
               setPicked(next);
               postAction("pick_box", {

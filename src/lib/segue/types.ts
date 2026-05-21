@@ -54,6 +54,7 @@ export interface ChatMessage {
 export interface UiAction {
   type:
     | "pick_box"
+    | "unpick_box"
     | "label_dose"
     | "pos_checkout"
     | "scan_barcode"
