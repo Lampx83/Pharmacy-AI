@@ -110,7 +110,8 @@ function DrugBox({
   picked,
   label,
   targetPos,
-  onPick
+  onPick,
+  scale = 1
 }: {
   drug: DrugSpec;
   shelfPos: [number, number, number];
@@ -118,6 +119,7 @@ function DrugBox({
   label?: HdsdLabel;
   targetPos: [number, number, number];
   onPick: () => void;
+  scale?: number;
 }) {
   const ref = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
@@ -133,6 +135,7 @@ function DrugBox({
     <group
       ref={ref}
       position={shelfPos}
+      scale={scale}
       onPointerOver={(e) => {
         e.stopPropagation();
         setHovered(true);
@@ -367,7 +370,8 @@ function FrontCounter({
             >
               {sec.label}
             </Text>
-            {/* Hộp thuốc xếp dynamic: 2 cột × n hàng để hiện hết toàn bộ thuốc của ngăn */}
+            {/* Hộp thuốc xếp dynamic: 2 cột × n hàng để hiện hết toàn bộ thuốc của ngăn.
+                Scale nhỏ lại (0.6) để vừa khoảng hẹp + không bị chồng vào nhau. */}
             {drugs.map((drug, idx, arr) => {
               const slotIdx = picked.indexOf(drug.id);
               const wt = pickSlotPos(slotIdx === -1 ? 0 : slotIdx);
@@ -375,13 +379,17 @@ function FrontCounter({
               const rows = Math.max(1, Math.ceil(arr.length / COLS));
               const col = idx % COLS;
               const row = Math.floor(idx / COLS);
-              const dx = (col - (COLS - 1) / 2) * (SECTION_W * 0.45);
-              const dz = (row - (rows - 1) / 2) * (COUNTER_D * 0.78 / rows);
+              // Khoảng cách cột: 0.55 × section width → cách nhau ~0.19 (box scale 0.6 → 0.10 wide)
+              const dx = (col - (COLS - 1) / 2) * (SECTION_W * 0.55);
+              // Khoảng cách hàng: chia đều COUNTER_D × 0.85, có giới hạn min/max
+              const dzStep = Math.min(0.11, Math.max(0.08, (COUNTER_D * 0.85) / Math.max(rows, 1)));
+              const dz = (row - (rows - 1) / 2) * dzStep;
               return (
                 <DrugBox
                   key={drug.id}
                   drug={drug}
-                  shelfPos={[dx, COUNTER_H + 0.15, dz]}
+                  shelfPos={[dx, COUNTER_H + 0.072, dz]}
+                  scale={0.6}
                   picked={picked.includes(drug.id)}
                   label={labels[drug.id]}
                   targetPos={[wt[0] - sectionCx, wt[1], wt[2] - COUNTER_Z]}
