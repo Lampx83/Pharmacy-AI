@@ -287,11 +287,11 @@ export function getDrugsByCabinet(cabinetId: string): DrugSpec[] {
 }
 
 export const PHARMACY_INFO = {
-  name: "NHÀ THUỐC THỰC HÀNH – HMC",
-  address: "Trường Công nghệ, Đại học Kinh tế Quốc dân, 207 Giải Phóng, Hà Nội",
+  name: "NHÀ THUỐC GPP – MÔ PHỎNG ĐÀO TẠO",
+  address: "Số 207, Giải Phóng, Hai Bà Trưng, Hà Nội",
   phone: "024 1234 5678",
   taxCode: "0101010101",
-  gpp: "GPP-HMC-2025-0001"
+  gpp: "GPP-HN-2024-0001"
 };
 
 export const VAT_RATE = 0.08;

@@ -1,15 +1,17 @@
 "use client";
 /**
- * GppScene v2 — bố cục theo Yêu cầu 2.docx
+ * GppScene v3 — bố cục Yêu cầu 2 + giữ lại trang trí v1
+ *
  *   - 4 tủ lớn sau lưng dược sĩ (2 Rx + 2 OTC)
  *   - 3 tủ bên tay phải (dược liệu / TPCN / mỹ phẩm)
  *   - 1 tủ quầy ngang phía trước, 3 ngăn (nhỏ mắt / nhỏ mũi / dùng ngoài)
- *   - Camera đặt sau vai dược sĩ, lệch ~30–45°
- *   - Tên nhà thuốc "Nhà thuốc thực hành – HMC"
- *
- * Bản scene cũ được giữ ở GppSceneLegacy.tsx để tham khảo.
+ *   - POS computer hai màn hình (cho dược sĩ + CFD cho khách)
+ *   - Quạt trần xoay, điều hoà, đèn LED trần, cây cảnh lay nhẹ
+ *   - Khu tư vấn riêng dùng sofa.glb + bàn
+ *   - Tủ lạnh fridge.glb, dược sĩ pharmacist.glb, bệnh nhân patient.glb
+ *   - Hàng ghế chờ quay vào trong
  */
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
   OrbitControls,
@@ -18,7 +20,9 @@ import {
   Environment,
   ContactShadows,
   SoftShadows,
-  Billboard
+  Billboard,
+  useGLTF,
+  useAnimations
 } from "@react-three/drei";
 import type * as THREE from "three";
 import {
@@ -29,6 +33,14 @@ import {
   type DrugSpec
 } from "@/lib/catalog/gpp";
 import { TIMING_LABEL, type HdsdLabel } from "@/lib/labels/hdsd";
+
+const NULL_RAYCAST = () => null as unknown as void;
+
+useGLTF.preload("/models/patient.glb");
+useGLTF.preload("/models/pharmacist.glb");
+useGLTF.preload("/models/plant.glb");
+useGLTF.preload("/models/fridge.glb");
+useGLTF.preload("/models/sofa.glb");
 
 interface Props {
   picked: string[];
@@ -58,23 +70,23 @@ const BACK_CAB_D = 0.55;
 const BACK_CAB_GAP = 0.18;
 const BACK_TOTAL_W = BACK_CABINETS.length * BACK_CAB_W + (BACK_CABINETS.length - 1) * BACK_CAB_GAP;
 
-const SIDE_CAB_W = 1.6; // along z
+const SIDE_CAB_W = 1.6;
 const SIDE_CAB_H = 2.6;
-const SIDE_CAB_D = 0.55; // along x (depth into room)
+const SIDE_CAB_D = 0.55;
 const SIDE_CAB_GAP = 0.18;
 const SIDE_TOTAL_W = SIDE_CABINETS.length * SIDE_CAB_W + (SIDE_CABINETS.length - 1) * SIDE_CAB_GAP;
 
 const COUNTER_W = 3.2;
 const COUNTER_H = 1.0;
 const COUNTER_D = 0.6;
-const COUNTER_Z = 1.3; // mặt trước quầy ở z = 1.3
+const COUNTER_Z = 1.3;
 const COUNTER_SECTIONS = FRONT_SECTIONS.length;
 const SECTION_W = COUNTER_W / COUNTER_SECTIONS;
 
 const SHELVES_PER_CAB = 5;
 const DRUGS_PER_SHELF = 3;
 
-/* ============= Hộp thuốc (clickable + animate vào khay) ============= */
+/* ============= Hộp thuốc clickable ============= */
 function DrugBox({
   drug,
   shelfPos,
@@ -120,7 +132,6 @@ function DrugBox({
           roughness={0.55}
         />
       </RoundedBox>
-      {/* Dải nhãn nhóm */}
       <mesh position={[0, 0.135, 0.073]}>
         <planeGeometry args={[0.22, 0.05]} />
         <meshStandardMaterial color={drug.groupAccent} />
@@ -163,7 +174,7 @@ function DrugBox({
   );
 }
 
-/* ============= Tủ thuốc lớn (5 tầng) ============= */
+/* ============= Tủ thuốc lớn ============= */
 function Cabinet({
   cabinet,
   drugs,
@@ -190,12 +201,10 @@ function Cabinet({
 
   return (
     <group position={origin} rotation={[0, rotationY, 0]}>
-      {/* Khung gỗ xanh */}
       <mesh position={[0, H / 2, -D / 2 + 0.02]} castShadow receiveShadow>
         <boxGeometry args={[W, H, 0.04]} />
         <meshStandardMaterial color="#f8fafc" roughness={0.6} />
       </mesh>
-      {/* viền gỗ xanh */}
       {[-1, 1].map((s) => (
         <mesh key={s} position={[(s * W) / 2 - s * 0.04, H / 2, 0]} castShadow>
           <boxGeometry args={[0.08, H, D]} />
@@ -210,7 +219,6 @@ function Cabinet({
         <boxGeometry args={[W, 0.08, D]} />
         <meshStandardMaterial color="#0f766e" roughness={0.4} />
       </mesh>
-      {/* 4 tầng kệ chia */}
       {Array.from({ length: SHELVES_PER_CAB - 1 }).map((_, i) => (
         <mesh
           key={i}
@@ -222,7 +230,6 @@ function Cabinet({
         </mesh>
       ))}
 
-      {/* Biển hiệu phía trên cùng */}
       <group position={[0, H + 0.22, -D / 2 + 0.02]}>
         <mesh castShadow>
           <boxGeometry args={[W + 0.02, 0.42, 0.06]} />
@@ -240,7 +247,6 @@ function Cabinet({
         </Text>
       </group>
 
-      {/* Hộp thuốc trên mỗi tầng */}
       {drugs.map((drug, idx) => {
         const shelf = idx % SHELVES_PER_CAB;
         const slot = Math.floor(idx / SHELVES_PER_CAB) % DRUGS_PER_SHELF;
@@ -248,7 +254,6 @@ function Cabinet({
         const x = (slot - (DRUGS_PER_SHELF - 1) / 2) * (W / DRUGS_PER_SHELF);
         const z = -D / 2 + 0.22;
         const isPicked = picked.includes(drug.id);
-        // pickSlotPos is in WORLD coords; convert to local
         const wt = pickSlotPos(picked.indexOf(drug.id) === -1 ? 0 : picked.indexOf(drug.id));
         const localTarget: [number, number, number] = [
           (wt[0] - origin[0]) * Math.cos(-rotationY) - (wt[2] - origin[2]) * Math.sin(-rotationY),
@@ -277,7 +282,7 @@ function Cabinet({
   );
 }
 
-/* ============= Quầy ngang phía trước (3 ngăn) ============= */
+/* ============= Quầy ngang 3 ngăn ============= */
 function FrontCounter({
   picked,
   labels,
@@ -291,30 +296,25 @@ function FrontCounter({
 }) {
   return (
     <group position={[0, 0, COUNTER_Z]}>
-      {/* Mặt quầy */}
       <mesh position={[0, COUNTER_H - 0.04, 0]} castShadow receiveShadow>
         <boxGeometry args={[COUNTER_W + 0.1, 0.08, COUNTER_D + 0.1]} />
         <meshStandardMaterial color="#0f766e" roughness={0.35} metalness={0.2} />
       </mesh>
-      {/* Thân tủ thấp dưới quầy */}
       <mesh position={[0, (COUNTER_H - 0.08) / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[COUNTER_W, COUNTER_H - 0.08, COUNTER_D]} />
         <meshStandardMaterial color="#f8fafc" roughness={0.6} />
       </mesh>
-      {/* 3 ngăn riêng */}
       {FRONT_SECTIONS.map((sec, sIdx) => {
         const cx = (sIdx - (COUNTER_SECTIONS - 1) / 2) * SECTION_W;
         const drugs = getDrugsByCabinet(sec.id).slice(0, 4);
         return (
           <group key={sec.id} position={[cx, 0, 0]}>
-            {/* Vách ngăn */}
             {sIdx < COUNTER_SECTIONS - 1 && (
               <mesh position={[SECTION_W / 2, COUNTER_H - 0.2, 0]}>
                 <boxGeometry args={[0.02, 0.3, COUNTER_D]} />
                 <meshStandardMaterial color={sec.accent} />
               </mesh>
             )}
-            {/* Bảng tên */}
             <mesh position={[0, COUNTER_H + 0.12, -COUNTER_D / 2 - 0.02]}>
               <boxGeometry args={[SECTION_W - 0.05, 0.16, 0.04]} />
               <meshStandardMaterial color={sec.accent} />
@@ -327,7 +327,6 @@ function FrontCounter({
             >
               {sec.label}
             </Text>
-            {/* Hộp thuốc bày trong ngăn */}
             {drugs.map((drug, idx) => {
               const slotIdx = picked.indexOf(drug.id);
               const wt = pickSlotPos(slotIdx === -1 ? 0 : slotIdx);
@@ -360,7 +359,7 @@ function FrontCounter({
   );
 }
 
-/* ============= Khay đựng thuốc cho khách ============= */
+/* ============= Khay đựng thuốc ============= */
 const PICK_TRAY_BASE: [number, number, number] = [-0.5, COUNTER_H + 0.04, COUNTER_Z + 0.7];
 function pickSlotPos(idx: number): [number, number, number] {
   const col = idx % 4;
@@ -387,75 +386,125 @@ function PickTray({ pickedCount }: { pickedCount: number }) {
   );
 }
 
-/* ============= POS computer (clickable) ============= */
+/* ============= POS hai màn hình ============= */
 function PosComputer({ onClick }: { onClick: () => void }) {
   const [hovered, setHovered] = useState(false);
   return (
     <group
-      position={[1.0, COUNTER_H + 0.05, COUNTER_Z - 0.08]}
+      position={[1.0, COUNTER_H + 0.05, COUNTER_Z - 0.12]}
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
-      onClick={onClick}
     >
-      {/* Đế màn hình */}
-      <mesh position={[0, 0.01, 0]} castShadow>
-        <boxGeometry args={[0.25, 0.02, 0.18]} />
-        <meshStandardMaterial color="#334155" />
+      {/* Đế chữ T */}
+      <mesh position={[0, 0.025, 0]} castShadow>
+        <boxGeometry args={[0.5, 0.04, 0.42]} />
+        <meshStandardMaterial color="#0f172a" metalness={0.35} roughness={0.45} />
       </mesh>
-      <mesh position={[0, 0.1, 0]} castShadow>
-        <boxGeometry args={[0.03, 0.18, 0.03]} />
-        <meshStandardMaterial color="#475569" />
+      <mesh position={[0, 0.005, 0]} castShadow>
+        <boxGeometry args={[0.52, 0.012, 0.44]} />
+        <meshStandardMaterial color="#1f2937" />
       </mesh>
-      {/* Màn hình */}
-      <mesh position={[0, 0.32, -0.02]} rotation={[-0.12, 0, 0]} castShadow>
-        <boxGeometry args={[0.62, 0.4, 0.04]} />
-        <meshStandardMaterial color="#0f172a" />
+      {/* trụ */}
+      <mesh position={[0, 0.22, 0]} castShadow>
+        <boxGeometry args={[0.08, 0.32, 0.08]} />
+        <meshStandardMaterial color="#0f172a" metalness={0.35} roughness={0.45} />
       </mesh>
-      <mesh position={[0, 0.32, 0.0]} rotation={[-0.12, 0, 0]}>
-        <planeGeometry args={[0.58, 0.36]} />
-        <meshStandardMaterial
-          color={hovered ? "#1e3a8a" : "#1e293b"}
-          emissive={hovered ? "#3b82f6" : "#0ea5e9"}
-          emissiveIntensity={0.3}
-        />
+      {/* khớp xoay */}
+      <mesh position={[0, 0.38, 0]} castShadow>
+        <cylinderGeometry args={[0.055, 0.055, 0.07, 24]} />
+        <meshStandardMaterial color="#1f2937" metalness={0.6} roughness={0.3} />
       </mesh>
-      <Text
-        position={[0, 0.4, 0.001]}
-        rotation={[-0.12, 0, 0]}
-        fontSize={0.04}
-        color="#bae6fd"
-        anchorX="center"
-      >
-        PHARMA-POS · HMC
-      </Text>
-      <Text
-        position={[0, 0.32, 0.001]}
-        rotation={[-0.12, 0, 0]}
-        fontSize={0.05}
-        color="#fef3c7"
-        anchorX="center"
-      >
-        F2: DANH MỤC
-      </Text>
-      <Text
-        position={[0, 0.24, 0.001]}
-        rotation={[-0.12, 0, 0]}
-        fontSize={0.03}
-        color="#94a3b8"
-        anchorX="center"
-      >
-        Click để mở phần mềm bán hàng
-      </Text>
-      {/* Bàn phím */}
-      <mesh position={[0, 0.06, 0.16]} castShadow>
-        <boxGeometry args={[0.4, 0.02, 0.14]} />
-        <meshStandardMaterial color="#1e293b" />
+
+      {/* ===== Màn chính DƯỢC SĨ — mặt hướng vào pharmacist (-z) ===== */}
+      <group position={[0, 0.6, -0.08]} rotation={[0.05, Math.PI, 0]}>
+        <mesh castShadow>
+          <boxGeometry args={[0.92, 0.62, 0.06]} />
+          <meshStandardMaterial color="#0a0f1c" metalness={0.55} roughness={0.4} />
+        </mesh>
+        <mesh position={[0, -0.27, 0.001]}>
+          <boxGeometry args={[0.92, 0.06, 0.061]} />
+          <meshStandardMaterial color="#0f172a" />
+        </mesh>
+        <Text position={[0, -0.27, 0.034]} fontSize={0.025} color="#94a3b8" anchorX="center">
+          PHARMA POS · 15.6"
+        </Text>
+        <mesh position={[0, 0.025, 0.032]} onClick={onClick}>
+          <planeGeometry args={[0.86, 0.5]} />
+          <meshStandardMaterial
+            color={hovered ? "#0f1f3a" : "#0b1220"}
+            emissive="#082f49"
+            emissiveIntensity={0.55}
+          />
+        </mesh>
+        <mesh position={[0, 0.225, 0.033]}>
+          <planeGeometry args={[0.86, 0.05]} />
+          <meshStandardMaterial color="#0d9488" />
+        </mesh>
+        <Text position={[-0.4, 0.225, 0.034]} fontSize={0.026} color="#ffffff" anchorX="left">
+          ★ Pharma-POS v1.0
+        </Text>
+        <Text position={[0.4, 0.225, 0.034]} fontSize={0.022} color="#a7f3d0" anchorX="right">
+          ● online · DS001
+        </Text>
+        <Text position={[0, 0.13, 0.034]} fontSize={0.04} color="#bae6fd" anchorX="center">
+          F2: DANH MỤC · F9: THANH TOÁN
+        </Text>
+        <Text position={[0, 0.04, 0.034]} fontSize={0.028} color="#e2e8f0" anchorX="center">
+          {`Danh mục: 180 SKU`}
+        </Text>
+        <Text position={[0, -0.05, 0.034]} fontSize={0.048} color="#22c55e" anchorX="center">
+          🛒 NHẤN ĐỂ MỞ POS
+        </Text>
+      </group>
+
+      {/* ===== Màn phụ CFD cho KHÁCH — mặt hướng ra ngoài (+z) ===== */}
+      <group position={[0.32, 0.5, 0.1]}>
+        <mesh position={[-0.18, -0.1, 0]} castShadow>
+          <boxGeometry args={[0.04, 0.18, 0.04]} />
+          <meshStandardMaterial color="#0f172a" />
+        </mesh>
+        <mesh castShadow>
+          <boxGeometry args={[0.56, 0.4, 0.05]} />
+          <meshStandardMaterial color="#0a0f1c" metalness={0.55} roughness={0.4} />
+        </mesh>
+        <mesh position={[0, 0.02, 0.026]}>
+          <planeGeometry args={[0.52, 0.32]} />
+          <meshStandardMaterial color="#0c4a6e" emissive="#0ea5e9" emissiveIntensity={0.5} />
+        </mesh>
+        <Text position={[0, 0.15, 0.028]} fontSize={0.022} color="#ecfeff" anchorX="center">
+          NHÀ THUỐC GPP · KHÁCH HÀNG
+        </Text>
+        <Text position={[0, 0.07, 0.028]} fontSize={0.026} color="#bae6fd" anchorX="center">
+          TỔNG TIỀN PHẢI THANH TOÁN
+        </Text>
+        <Text position={[0, -0.02, 0.028]} fontSize={0.075} color="#fef3c7" anchorX="center">
+          — ₫
+        </Text>
+        <Text position={[0, -0.11, 0.028]} fontSize={0.018} color="#cbd5e1" anchorX="center">
+          (đã gồm 8% VAT) — Cảm ơn quý khách!
+        </Text>
+      </group>
+
+      {/* Bàn phím + chuột */}
+      <group position={[0, 0, -0.32]}>
+        <mesh position={[0, 0.015, 0]} rotation={[0.08, 0, 0]} castShadow>
+          <boxGeometry args={[0.55, 0.025, 0.2]} />
+          <meshStandardMaterial color="#1f2937" roughness={0.55} />
+        </mesh>
+        <mesh position={[0, 0.029, 0]} rotation={[0.08, 0, 0]}>
+          <boxGeometry args={[0.51, 0.005, 0.17]} />
+          <meshStandardMaterial color="#475569" />
+        </mesh>
+      </group>
+      <mesh position={[0.35, 0.018, -0.32]} castShadow>
+        <boxGeometry args={[0.08, 0.028, 0.13]} />
+        <meshStandardMaterial color="#1f2937" roughness={0.55} />
       </mesh>
     </group>
   );
 }
 
-/* ============= Tool tray (kéo, bút, bao bì ra lẻ) ============= */
+/* ============= Khay nhãn HDSD ============= */
 function ToolTray({ onClick }: { onClick: () => void }) {
   const [hovered, setHovered] = useState(false);
   return (
@@ -475,13 +524,12 @@ function ToolTray({ onClick }: { onClick: () => void }) {
       <Text position={[0, 0.02, 0.07]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.026} color="#475569">
         click để soạn nhãn
       </Text>
-      {/* túi giấy 3 màu */}
       {[
         ["#ffffff", -0.18],
         ["#fde68a", 0.0],
         ["#fbcfe8", 0.18]
       ].map(([c, dx], i) => (
-        <mesh key={i} position={[dx as number, 0.035, 0.12]} rotation={[0, 0, 0]}>
+        <mesh key={i} position={[dx as number, 0.035, 0.12]}>
           <boxGeometry args={[0.12, 0.06, 0.08]} />
           <meshStandardMaterial color={c as string} />
         </mesh>
@@ -490,85 +538,258 @@ function ToolTray({ onClick }: { onClick: () => void }) {
   );
 }
 
-/* ============= Tủ lạnh nhỏ ============= */
-function MiniFridge() {
-  return (
-    <group position={[-3.6, 0, COUNTER_Z + 0.6]}>
-      <mesh position={[0, 0.7, 0]} castShadow receiveShadow>
-        <boxGeometry args={[0.65, 1.4, 0.6]} />
-        <meshStandardMaterial color="#f1f5f9" roughness={0.5} />
-      </mesh>
-      <mesh position={[0, 0.7, 0.31]}>
-        <boxGeometry args={[0.6, 1.3, 0.02]} />
-        <meshStandardMaterial color="#cbd5e1" />
-      </mesh>
-      <Billboard position={[0, 1.55, 0.32]}>
-        <Text fontSize={0.058} color="#0f766e" anchorX="center">
-          TỦ LẠNH 2–8°C
-        </Text>
-      </Billboard>
-    </group>
-  );
-}
-
-/* ============= Khu vực tư vấn riêng (bàn ghế) ============= */
-function ConsultArea() {
-  return (
-    <group position={[-3.6, 0, 2.4]}>
-      {/* Bàn */}
-      <mesh position={[0, 0.75, 0]} castShadow>
-        <boxGeometry args={[1.2, 0.05, 0.6]} />
-        <meshStandardMaterial color="#fef3c7" roughness={0.5} />
-      </mesh>
-      <mesh position={[0, 0.37, 0]} castShadow>
-        <boxGeometry args={[0.05, 0.74, 0.05]} />
-        <meshStandardMaterial color="#92400e" />
-      </mesh>
-      {/* 2 ghế */}
-      <mesh position={[-0.45, 0.45, 0.5]} castShadow>
-        <boxGeometry args={[0.4, 0.05, 0.4]} />
-        <meshStandardMaterial color="#fca5a5" />
-      </mesh>
-      <mesh position={[0.45, 0.45, 0.5]} castShadow>
-        <boxGeometry args={[0.4, 0.05, 0.4]} />
-        <meshStandardMaterial color="#fca5a5" />
-      </mesh>
-      <Billboard position={[0, 1.4, 0]}>
-        <Text fontSize={0.085} color="#0f766e" anchorX="center">
-          KHU TƯ VẤN RIÊNG
-        </Text>
-      </Billboard>
-    </group>
-  );
-}
-
-/* ============= Avatar dược sĩ + bệnh nhân (đơn giản) ============= */
-function SimpleFigure({
+/* ============= GLB object loader ============= */
+function ModelObject({
+  url,
   position,
   rotationY = 0,
-  color,
+  scale = 1
+}: {
+  url: string;
+  position: [number, number, number];
+  rotationY?: number;
+  scale?: number | [number, number, number];
+}) {
+  const { scene } = useGLTF(url) as any;
+  const cloned = useMemo(() => scene.clone(true), [scene]);
+  useEffect(() => {
+    cloned.traverse((o: any) => {
+      if (o.isMesh) {
+        o.castShadow = true;
+        o.receiveShadow = true;
+        o.raycast = NULL_RAYCAST;
+      }
+    });
+  }, [cloned]);
+  return (
+    <group
+      position={position}
+      rotation={[0, rotationY, 0]}
+      scale={typeof scale === "number" ? [scale, scale, scale] : scale}
+    >
+      <primitive object={cloned} />
+    </group>
+  );
+}
+
+/* ============= GLB character (rigged, có animation idle) ============= */
+function ModelCharacter({
+  url,
+  position,
+  rotationY = 0,
+  scale = 1,
   label
+}: {
+  url: string;
+  position: [number, number, number];
+  rotationY?: number;
+  scale?: number;
+  label: string;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const { scene, animations } = useGLTF(url) as any;
+  const cloned = useMemo(() => scene.clone(true), [scene]);
+  const { actions } = useAnimations(animations || [], groupRef);
+
+  useEffect(() => {
+    if (!actions) return;
+    const keys = Object.keys(actions);
+    if (!keys.length) return;
+    const idleKey =
+      keys.find((k) => /idle|stand/i.test(k)) ||
+      keys.find((k) => !/walk|run|dance|jump|jog|fall/i.test(k)) ||
+      keys[0];
+    const idle = actions[idleKey];
+    if (!idle) return;
+    idle.timeScale = 0.7;
+    idle.reset().fadeIn(0.4).play();
+    return () => {
+      idle.fadeOut(0.2).stop();
+    };
+  }, [actions]);
+
+  useEffect(() => {
+    cloned.traverse((o: any) => {
+      if (o.isMesh) {
+        o.castShadow = true;
+        o.receiveShadow = true;
+        o.raycast = NULL_RAYCAST;
+      }
+    });
+  }, [cloned]);
+
+  return (
+    <group ref={groupRef} position={position} rotation={[0, rotationY, 0]} scale={scale}>
+      <primitive object={cloned} />
+      <Billboard position={[0, 1.95, 0]}>
+        <Text fontSize={0.08} color="#0f172a" anchorX="center" outlineColor="#ffffff" outlineWidth={0.005}>
+          {label}
+        </Text>
+      </Billboard>
+    </group>
+  );
+}
+
+/* ============= Cây cảnh lay nhẹ (sway animation) ============= */
+function AnimatedPlant({
+  position,
+  scale = 1.4,
+  phase = 0
+}: {
+  position: [number, number, number];
+  scale?: number;
+  phase?: number;
+}) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    const g = ref.current;
+    if (!g) return;
+    const t = clock.elapsedTime + phase;
+    g.rotation.z = Math.sin(t * 0.9) * 0.04;
+    g.rotation.x = Math.cos(t * 0.7) * 0.025;
+  });
+  return (
+    <group ref={ref} position={position}>
+      <ModelObject url="/models/plant.glb" position={[0, 0, 0]} scale={scale} />
+    </group>
+  );
+}
+
+/* ============= Quạt trần xoay ============= */
+function CeilingFan({ position }: { position: [number, number, number] }) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame((_, dt) => {
+    if (ref.current) ref.current.rotation.y += dt * 4.5;
+  });
+  return (
+    <group position={position}>
+      <mesh position={[0, 0.18, 0]}>
+        <cylinderGeometry args={[0.025, 0.025, 0.36, 12]} />
+        <meshStandardMaterial color="#94a3b8" metalness={0.85} roughness={0.25} />
+      </mesh>
+      <mesh>
+        <cylinderGeometry args={[0.13, 0.16, 0.1, 24]} />
+        <meshStandardMaterial color="#475569" metalness={0.7} roughness={0.4} />
+      </mesh>
+      <mesh position={[0, 0.07, 0]}>
+        <cylinderGeometry args={[0.14, 0.13, 0.04, 24]} />
+        <meshStandardMaterial color="#cbd5e1" metalness={0.85} roughness={0.25} />
+      </mesh>
+      <group ref={ref}>
+        {[0, Math.PI / 2, Math.PI, (Math.PI * 3) / 2].map((a, i) => (
+          <group key={i} rotation={[0, a, 0]}>
+            <mesh position={[0.55, -0.02, 0]} rotation={[0.18, 0, 0]} castShadow>
+              <boxGeometry args={[0.85, 0.018, 0.2]} />
+              <meshStandardMaterial color="#f8fafc" roughness={0.6} />
+            </mesh>
+          </group>
+        ))}
+      </group>
+      <mesh position={[0, -0.12, 0]}>
+        <sphereGeometry args={[0.09, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshStandardMaterial
+          color="#fef9c3"
+          emissive="#fde68a"
+          emissiveIntensity={0.55}
+          transparent
+          opacity={0.85}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+/* ============= Điều hoà ============= */
+function ACUnit({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      <mesh castShadow>
+        <boxGeometry args={[1.6, 0.4, 0.32]} />
+        <meshStandardMaterial color="#fafafa" roughness={0.4} />
+      </mesh>
+      <mesh position={[0, -0.18, 0.16]}>
+        <boxGeometry args={[1.4, 0.06, 0.02]} />
+        <meshStandardMaterial color="#e2e8f0" />
+      </mesh>
+      <Text position={[0.6, -0.05, 0.165]} fontSize={0.05} color="#64748b" anchorX="right">
+        AIR · INVERTER
+      </Text>
+      <mesh position={[-0.6, 0.12, 0.165]}>
+        <circleGeometry args={[0.018, 16]} />
+        <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={0.6} />
+      </mesh>
+    </group>
+  );
+}
+
+/* ============= Đèn LED trần ============= */
+function CeilingLight({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      <mesh>
+        <boxGeometry args={[1.2, 0.03, 0.4]} />
+        <meshStandardMaterial color="#ffffff" emissive="#fef9c3" emissiveIntensity={1.3} />
+      </mesh>
+    </group>
+  );
+}
+
+/* ============= Biển chữ thập GPP ============= */
+function CrossSign({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      <mesh position={[0, -0.05, -0.04]} castShadow>
+        <boxGeometry args={[0.05, 0.1, 0.05]} />
+        <meshStandardMaterial color="#94a3b8" metalness={0.7} roughness={0.3} />
+      </mesh>
+      <mesh>
+        <boxGeometry args={[0.6, 0.6, 0.08]} />
+        <meshStandardMaterial color="#ffffff" />
+      </mesh>
+      <mesh position={[0, 0, 0.045]}>
+        <planeGeometry args={[0.55, 0.16]} />
+        <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={0.9} />
+      </mesh>
+      <mesh position={[0, 0, 0.046]}>
+        <planeGeometry args={[0.16, 0.55]} />
+        <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={0.9} />
+      </mesh>
+    </group>
+  );
+}
+
+/* ============= Hàng ghế chờ (quay vào trong) ============= */
+function WaitingChair({
+  position,
+  rotationY = 0
 }: {
   position: [number, number, number];
   rotationY?: number;
-  color: string;
-  label: string;
 }) {
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
       <mesh position={[0, 0.45, 0]} castShadow>
-        <cylinderGeometry args={[0.18, 0.22, 0.9, 16]} />
-        <meshStandardMaterial color={color} />
+        <boxGeometry args={[1.8, 0.05, 0.45]} />
+        <meshStandardMaterial color="#1e293b" metalness={0.4} roughness={0.5} />
       </mesh>
-      <mesh position={[0, 1.05, 0]} castShadow>
-        <sphereGeometry args={[0.16, 24, 24]} />
-        <meshStandardMaterial color="#fde68a" />
-      </mesh>
-      <Billboard position={[0, 1.4, 0]}>
-        <Text fontSize={0.075} color="#0f172a" anchorX="center">
-          {label}
-        </Text>
-      </Billboard>
+      {[-0.6, 0, 0.6].map((x) => (
+        <mesh key={`s${x}`} position={[x, 0.48, 0]} castShadow>
+          <boxGeometry args={[0.55, 0.03, 0.4]} />
+          <meshStandardMaterial color="#0ea5e9" roughness={0.7} />
+        </mesh>
+      ))}
+      {[-0.6, 0, 0.6].map((x) => (
+        <mesh key={`b${x}`} position={[x, 0.78, -0.2]} castShadow>
+          <boxGeometry args={[0.55, 0.4, 0.04]} />
+          <meshStandardMaterial color="#0ea5e9" roughness={0.7} />
+        </mesh>
+      ))}
+      {[-0.85, 0.85].map((x) => (
+        <mesh key={`l${x}`} position={[x, 0.22, 0]} castShadow>
+          <boxGeometry args={[0.05, 0.45, 0.45]} />
+          <meshStandardMaterial color="#334155" metalness={0.5} />
+        </mesh>
+      ))}
     </group>
   );
 }
@@ -585,17 +806,14 @@ function Floor() {
 function Walls() {
   return (
     <group>
-      {/* tường sau */}
       <mesh position={[0, ROOM_H / 2, BACK_Z - 0.05]} receiveShadow>
         <boxGeometry args={[ROOM_W, ROOM_H, 0.1]} />
         <meshStandardMaterial color="#ecfeff" roughness={0.85} />
       </mesh>
-      {/* tường trái */}
       <mesh position={[-ROOM_W / 2 - 0.05, ROOM_H / 2, 0]} receiveShadow>
         <boxGeometry args={[0.1, ROOM_H, ROOM_D]} />
         <meshStandardMaterial color="#ecfeff" roughness={0.85} />
       </mesh>
-      {/* tường phải */}
       <mesh position={[ROOM_W / 2 + 0.05, ROOM_H / 2, 0]} receiveShadow>
         <boxGeometry args={[0.1, ROOM_H, ROOM_D]} />
         <meshStandardMaterial color="#ecfeff" roughness={0.85} />
@@ -604,7 +822,7 @@ function Walls() {
   );
 }
 
-/* ============= Mảng thuốc đại diện cho từng tủ ============= */
+/* ============= Subset thuốc trong scene ============= */
 function pickDisplayDrugs(cabinetId: string, n: number): DrugSpec[] {
   return getDrugsByCabinet(cabinetId).slice(0, n);
 }
@@ -622,7 +840,6 @@ export default function GppScene({
 }: Props) {
   const labelCount = Object.keys(labels).length;
 
-  // Drug subset rendered in 3D scene (POS still has all 180)
   const backDrugs = useMemo(
     () => BACK_CABINETS.map((c) => pickDisplayDrugs(c.id, SHELVES_PER_CAB * DRUGS_PER_SHELF)),
     []
@@ -643,12 +860,13 @@ export default function GppScene({
     >
       <Canvas shadows camera={{ position: [3.4, 4.0, 5.5], fov: 48 }} gl={{ antialias: true }}>
         <color attach="background" args={["#e6efe9"]} />
+        <fog attach="fog" args={["#e6efe9", 14, 26]} />
         <SoftShadows size={24} samples={10} focus={0.6} />
 
         <ambientLight intensity={0.55} />
         <hemisphereLight args={["#ffffff", "#cbd5e1", 0.4]} />
         <directionalLight
-          position={[3, 5, 4]}
+          position={[4, 6, 5]}
           intensity={1.0}
           castShadow
           shadow-mapSize-width={2048}
@@ -660,7 +878,19 @@ export default function GppScene({
         <Floor />
         <Walls />
 
-        {/* === 4 tủ lớn sau lưng dược sĩ === */}
+        {/* Đèn LED trần + quạt + biển chữ thập GPP */}
+        <CeilingLight position={[-2.0, ROOM_H - 0.05, 0.6]} />
+        <CeilingLight position={[2.0, ROOM_H - 0.05, 0.6]} />
+        <CeilingLight position={[0, ROOM_H - 0.05, COUNTER_Z + 0.5]} />
+        <CeilingFan position={[0, ROOM_H - 0.45, 0.4]} />
+        <CrossSign position={[-3.4, BACK_CAB_H + 0.4, BACK_Z + 0.1]} />
+        <CrossSign position={[3.4, BACK_CAB_H + 0.4, BACK_Z + 0.1]} />
+
+        {/* Điều hoà trên tường sau */}
+        <ACUnit position={[-1.5, ROOM_H - 0.5, BACK_Z + 0.04]} />
+        <ACUnit position={[1.5, ROOM_H - 0.5, BACK_Z + 0.04]} />
+
+        {/* === 4 tủ lớn sau lưng === */}
         {BACK_CABINETS.map((cab, i) => {
           const x = -BACK_TOTAL_W / 2 + BACK_CAB_W / 2 + i * (BACK_CAB_W + BACK_CAB_GAP);
           return (
@@ -678,7 +908,7 @@ export default function GppScene({
           );
         })}
 
-        {/* === 3 tủ bên tay phải dược sĩ (tường phải, quay vào trong) === */}
+        {/* === 3 tủ bên phải === */}
         {SIDE_CABINETS.map((cab, i) => {
           const z = -SIDE_TOTAL_W / 2 + SIDE_CAB_W / 2 + i * (SIDE_CAB_W + SIDE_CAB_GAP) - 0.2;
           return (
@@ -708,27 +938,67 @@ export default function GppScene({
         <ToolTray onClick={onOpenLabelEditor} />
         <PosComputer onClick={onOpenPos} />
 
-        <MiniFridge />
-        <ConsultArea />
+        {/* === Tủ lạnh GLB === */}
+        <ModelObject url="/models/fridge.glb" position={[-3.4, 0, COUNTER_Z + 0.1]} rotationY={Math.PI / 6} scale={1.4} />
+        <Billboard position={[-3.4, 1.85, COUNTER_Z + 0.1]}>
+          <Text fontSize={0.07} color="#0f766e" anchorX="center">
+            TỦ LẠNH 2–8°C
+          </Text>
+        </Billboard>
 
-        {/* Dược sĩ đứng sau quầy, mặt hướng ra phía bệnh nhân */}
-        <SimpleFigure
-          position={[0, 0, COUNTER_Z - 0.45]}
+        {/* === Khu tư vấn riêng: sofa GLB + bàn === */}
+        <group position={[-3.4, 0, -1.0]}>
+          {/* Sofa 2 người */}
+          <ModelObject url="/models/sofa.glb" position={[0, 0, -0.4]} rotationY={Math.PI / 2} scale={0.9} />
+          <ModelObject url="/models/sofa.glb" position={[0, 0, 0.8]} rotationY={-Math.PI / 2} scale={0.9} />
+          {/* Bàn ở giữa */}
+          <mesh position={[0, 0.42, 0.2]} castShadow receiveShadow>
+            <boxGeometry args={[0.9, 0.05, 0.6]} />
+            <meshStandardMaterial color="#fef3c7" roughness={0.45} />
+          </mesh>
+          <mesh position={[0, 0.21, 0.2]} castShadow>
+            <cylinderGeometry args={[0.04, 0.06, 0.42, 12]} />
+            <meshStandardMaterial color="#92400e" />
+          </mesh>
+          {/* Bảng tên */}
+          <Billboard position={[0, 1.55, 0.2]}>
+            <Text fontSize={0.085} color="#0f766e" anchorX="center" outlineColor="#ffffff" outlineWidth={0.004}>
+              KHU TƯ VẤN RIÊNG
+            </Text>
+          </Billboard>
+        </group>
+
+        {/* === Dược sĩ + Bệnh nhân: model GLB === */}
+        <ModelCharacter
+          url="/models/pharmacist.glb"
+          position={[0, 0, COUNTER_Z - 0.55]}
           rotationY={0}
-          color="#ffffff"
+          scale={1.0}
           label="DƯỢC SĨ (SV)"
         />
-        {/* Bệnh nhân đứng đối diện qua quầy, xoay nhẹ ~20° */}
-        <SimpleFigure
-          position={[0, 0, COUNTER_Z + 0.95]}
+        <ModelCharacter
+          url="/models/patient.glb"
+          position={[0.2, 0, COUNTER_Z + 1.1]}
           rotationY={Math.PI + 0.35}
-          color="#fca5a5"
+          scale={1.0}
           label="BỆNH NHÂN"
         />
 
-        {/* Bubble thoại — Billboard luôn quay về phía camera */}
+        {/* === 2 hàng ghế chờ — quay vào trong === */}
+        {/* Hàng trái sát tường trái, lưng dựa vào tường (-x), mặt ghế quay sang phải (+x) → rotationY = +π/2 */}
+        <WaitingChair position={[-ROOM_W / 2 + 0.4, 0, 2.8]} rotationY={Math.PI / 2} />
+        {/* Hàng phải sát tường phải, lưng dựa vào tường (+x), mặt quay sang trái (-x) → rotationY = -π/2 */}
+        <WaitingChair position={[ROOM_W / 2 - 0.4, 0, 2.8]} rotationY={-Math.PI / 2} />
+
+        {/* === 4 cây cảnh lay nhẹ === */}
+        <AnimatedPlant position={[-ROOM_W / 2 + 0.5, 0, COUNTER_Z + 1.6]} scale={1.4} phase={0} />
+        <AnimatedPlant position={[ROOM_W / 2 - 0.5, 0, COUNTER_Z + 1.6]} scale={1.4} phase={1.2} />
+        <AnimatedPlant position={[-2.5, 0, COUNTER_Z + 2.4]} scale={1.0} phase={2.4} />
+        <AnimatedPlant position={[2.5, 0, COUNTER_Z + 2.4]} scale={1.0} phase={3.6} />
+
+        {/* === Bubble thoại Billboard === */}
         {patientLine && (
-          <Billboard position={[0.95, 1.55, COUNTER_Z + 0.95]}>
+          <Billboard position={[0.95, 1.55, COUNTER_Z + 1.1]}>
             <mesh>
               <planeGeometry args={[0.95, 0.28]} />
               <meshStandardMaterial color="#ffffff" />
@@ -739,7 +1009,7 @@ export default function GppScene({
           </Billboard>
         )}
         {pharmacistLine && (
-          <Billboard position={[-0.95, 1.65, COUNTER_Z - 0.45]}>
+          <Billboard position={[-0.95, 1.65, COUNTER_Z - 0.55]}>
             <mesh>
               <planeGeometry args={[0.95, 0.28]} />
               <meshStandardMaterial color="#dcfce7" />
@@ -752,12 +1022,11 @@ export default function GppScene({
 
         <ContactShadows position={[0, 0.001, 0]} opacity={0.45} scale={20} blur={2.5} far={4} />
 
-        {/* Camera mặc định đã set sau vai dược sĩ (lệch phải ~30°). */}
         <OrbitControls
           enablePan={false}
           maxPolarAngle={Math.PI / 2.1}
           minDistance={2.5}
-          maxDistance={12}
+          maxDistance={14}
           target={[0, 0.9, -0.4]}
         />
       </Canvas>

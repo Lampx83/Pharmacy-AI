@@ -174,7 +174,7 @@ export default function PosTerminal({
       <div style={posWindowStyle}>
         {/* Thanh tiêu đề kiểu cửa sổ phần mềm */}
         <div style={titleBarStyle}>
-          <span>★ Pharma-POS v1.0 — Phần mềm bán hàng Nhà thuốc thực hành HMC</span>
+          <span>★ Pharma-POS v1.0 — Phần mềm bán hàng nhà thuốc GPP</span>
           <button onClick={onClose} style={closeBtnStyle}>✕</button>
         </div>
 

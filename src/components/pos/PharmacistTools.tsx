@@ -37,7 +37,7 @@ export interface Prescription {
 }
 
 export const DEMO_PRESCRIPTION: Prescription = {
-  facility: "Bệnh viện Đa khoa Thực hành HMC",
+  facility: "Bệnh viện Đa khoa Mô phỏng",
   facilityAddress: "207 Giải Phóng, Hai Bà Trưng, Hà Nội",
   facilityPhone: "024 3869 1234",
   patientName: "Nguyễn Thị Lan",
@@ -64,7 +64,7 @@ export const DEMO_PRESCRIPTION: Prescription = {
   doctorName: "BS. Trần Văn Minh",
   doctorPhone: "0912 345 678",
   signedAt: "Ngày 21 tháng 5 năm 2026",
-  rxNumber: "ĐT-HMC-2026-001234"
+  rxNumber: "ĐT-MP-2026-001234"
 };
 
 export function PrescriptionModal({
@@ -463,7 +463,7 @@ export function SeniorPharmacistModal({
             <span style={{ color: "#475569" }}>
               Dược sĩ Đại học · Phụ trách chuyên môn
               <br />
-              Nhà thuốc thực hành HMC
+              Nhà thuốc GPP – Mô phỏng đào tạo
             </span>
           </div>
         </div>
