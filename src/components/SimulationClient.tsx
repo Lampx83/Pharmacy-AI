@@ -60,19 +60,6 @@ export default function SimulationClient({ moduleId }: { moduleId: ModuleId }) {
   // Layout
   const [panelOpen, setPanelOpen] = useState(true);
 
-  // Avatar swap (Ready Player Me / Mixamo URL nóng)
-  const DEFAULT_PHARMACIST = "/models/pharmacist.glb";
-  const DEFAULT_PATIENT = "/models/patient.glb";
-  const [pharmacistUrl, setPharmacistUrl] = useState(DEFAULT_PHARMACIST);
-  const [patientUrl, setPatientUrl] = useState(DEFAULT_PATIENT);
-  const [pharmacistUrlDraft, setPharmacistUrlDraft] = useState(DEFAULT_PHARMACIST);
-  const [patientUrlDraft, setPatientUrlDraft] = useState(DEFAULT_PATIENT);
-  const [pharmacistClip, setPharmacistClip] = useState<string | undefined>(undefined);
-  const [patientClip, setPatientClip] = useState<string | undefined>(undefined);
-  const [pharmacistClips, setPharmacistClips] = useState<string[]>([]);
-  const [patientClips, setPatientClips] = useState<string[]>([]);
-  const [avatarPanelOpen, setAvatarPanelOpen] = useState(false);
-
   useEffect(() => {
     (async () => {
       const r = await fetch("/api/session", {
@@ -163,92 +150,6 @@ export default function SimulationClient({ moduleId }: { moduleId: ModuleId }) {
         {panelOpen ? "→ Thu gọn" : "← Mở panel"}
       </button>
 
-      {/* Avatar swap panel — chỉ hiện ở module GPP */}
-      {moduleId === "gpp" && (
-        <div
-          style={{
-            position: "fixed",
-            top: 14,
-            left: 14,
-            zIndex: 100,
-            background: "rgba(15,23,42,0.92)",
-            border: "1px solid #334155",
-            borderRadius: 10,
-            color: "#e2e8f0",
-            fontSize: 12,
-            width: avatarPanelOpen ? 320 : "auto",
-            maxWidth: "calc(100vw - 28px)"
-          }}
-        >
-          <button
-            onClick={() => setAvatarPanelOpen((o) => !o)}
-            style={{
-              width: "100%",
-              padding: "6px 12px",
-              background: "transparent",
-              border: "none",
-              color: "#e2e8f0",
-              fontWeight: 600,
-              textAlign: "left",
-              fontSize: 13
-            }}
-          >
-            {avatarPanelOpen ? "▾" : "▸"} 🧍 Avatar (RPM / Mixamo)
-          </button>
-          {avatarPanelOpen && (
-            <div style={{ padding: "0 12px 12px" }}>
-              <p style={{ margin: "2px 0 8px", color: "#94a3b8", fontSize: 11 }}>
-                Tạo avatar tại{" "}
-                <a
-                  href="https://readyplayer.me"
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: "#5eead4" }}
-                >
-                  readyplayer.me
-                </a>{" "}
-                → copy URL .glb → dán vào ô bên dưới → Apply.
-              </p>
-
-              <AvatarSlot
-                title="Dược sĩ"
-                draft={pharmacistUrlDraft}
-                setDraft={setPharmacistUrlDraft}
-                onApply={() => setPharmacistUrl(pharmacistUrlDraft.trim() || DEFAULT_PHARMACIST)}
-                onReset={() => {
-                  setPharmacistUrlDraft(DEFAULT_PHARMACIST);
-                  setPharmacistUrl(DEFAULT_PHARMACIST);
-                  setPharmacistClip(undefined);
-                }}
-                clips={pharmacistClips}
-                clip={pharmacistClip}
-                setClip={setPharmacistClip}
-              />
-
-              <AvatarSlot
-                title="Bệnh nhân"
-                draft={patientUrlDraft}
-                setDraft={setPatientUrlDraft}
-                onApply={() => setPatientUrl(patientUrlDraft.trim() || DEFAULT_PATIENT)}
-                onReset={() => {
-                  setPatientUrlDraft(DEFAULT_PATIENT);
-                  setPatientUrl(DEFAULT_PATIENT);
-                  setPatientClip(undefined);
-                }}
-                clips={patientClips}
-                clip={patientClip}
-                setClip={setPatientClip}
-              />
-
-              <p style={{ margin: "6px 0 0", color: "#64748b", fontSize: 11 }}>
-                Lưu ý: avatar RPM thuần chỉ có pose T mặc định. Để có animation, hãy chọn
-                nhân vật Mixamo (đã có Idle/Talk sẵn).
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
       <div className="scene">
         {moduleId === "gpp" && (
           <GppScene
@@ -257,12 +158,6 @@ export default function SimulationClient({ moduleId }: { moduleId: ModuleId }) {
             pendingLabel={!!pendingLabel}
             patientLine={[...session.messages].reverse().find((m) => m.role === "npc")?.content}
             pharmacistLine={[...session.messages].reverse().find((m) => m.role === "user")?.content}
-            pharmacistUrl={pharmacistUrl}
-            patientUrl={patientUrl}
-            pharmacistClip={pharmacistClip}
-            patientClip={patientClip}
-            onPharmacistClips={setPharmacistClips}
-            onPatientClips={setPatientClips}
             onPick={(item) => {
               // Khi đang cầm nhãn HDSD → click hộp thuốc = dán nhãn cho loại đó
               if (pendingLabel) {
@@ -603,103 +498,6 @@ export default function SimulationClient({ moduleId }: { moduleId: ModuleId }) {
               ? "Cùng bữa"
               : "Bất kỳ"}
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AvatarSlot({
-  title,
-  draft,
-  setDraft,
-  onApply,
-  onReset,
-  clips,
-  clip,
-  setClip
-}: {
-  title: string;
-  draft: string;
-  setDraft: (s: string) => void;
-  onApply: () => void;
-  onReset: () => void;
-  clips: string[];
-  clip: string | undefined;
-  setClip: (s: string | undefined) => void;
-}) {
-  return (
-    <div style={{ margin: "8px 0", paddingTop: 8, borderTop: "1px solid #1e293b" }}>
-      <div style={{ fontWeight: 600, marginBottom: 4 }}>{title}</div>
-      <input
-        type="text"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        placeholder="https://models.readyplayer.me/<id>.glb"
-        style={{
-          width: "100%",
-          padding: "4px 6px",
-          fontSize: 11,
-          background: "#0f172a",
-          color: "#e2e8f0",
-          border: "1px solid #334155",
-          borderRadius: 4,
-          boxSizing: "border-box"
-        }}
-      />
-      <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-        <button
-          onClick={onApply}
-          style={{
-            flex: 1,
-            padding: "4px 8px",
-            fontSize: 11,
-            background: "#0f766e",
-            border: "1px solid #14b8a6",
-            color: "#ecfeff",
-            borderRadius: 4
-          }}
-        >
-          Apply
-        </button>
-        <button
-          onClick={onReset}
-          style={{
-            padding: "4px 8px",
-            fontSize: 11,
-            background: "#334155",
-            border: "1px solid #475569",
-            color: "#e2e8f0",
-            borderRadius: 4
-          }}
-        >
-          Reset
-        </button>
-      </div>
-      {clips.length > 0 && (
-        <div style={{ marginTop: 4 }}>
-          <label style={{ fontSize: 11, color: "#94a3b8" }}>Pose / Animation:</label>
-          <select
-            value={clip || ""}
-            onChange={(e) => setClip(e.target.value || undefined)}
-            style={{
-              width: "100%",
-              padding: "3px 6px",
-              fontSize: 11,
-              background: "#0f172a",
-              color: "#e2e8f0",
-              border: "1px solid #334155",
-              borderRadius: 4,
-              marginTop: 2
-            }}
-          >
-            <option value="">— Auto (Idle) —</option>
-            {clips.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
         </div>
       )}
     </div>

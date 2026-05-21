@@ -11,7 +11,7 @@
  *   - Tủ lạnh fridge.glb, dược sĩ pharmacist.glb, bệnh nhân patient.glb
  *   - Hàng ghế chờ quay vào trong
  */
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
   OrbitControls,
@@ -51,12 +51,6 @@ interface Props {
   onOpenLabelEditor: () => void;
   patientLine?: string;
   pharmacistLine?: string;
-  pharmacistUrl?: string;
-  patientUrl?: string;
-  pharmacistClip?: string;
-  patientClip?: string;
-  onPharmacistClips?: (clips: string[]) => void;
-  onPatientClips?: (clips: string[]) => void;
 }
 
 /* ----------- Layout constants (m) ----------- */
@@ -603,17 +597,13 @@ function ModelCharacter({
   position,
   rotationY = 0,
   scale = 1,
-  label,
-  clipName,
-  onClips
+  label
 }: {
   url: string;
   position: [number, number, number];
   rotationY?: number;
   scale?: number;
   label: string;
-  clipName?: string;
-  onClips?: (clips: string[]) => void;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const { scene, animations } = useGLTF(url) as any;
@@ -621,27 +611,21 @@ function ModelCharacter({
   const { actions } = useAnimations(animations || [], groupRef);
 
   useEffect(() => {
-    if (!onClips) return;
-    onClips((animations || []).map((a: any) => a.name).filter(Boolean));
-  }, [animations, onClips]);
-
-  useEffect(() => {
     if (!actions) return;
     const keys = Object.keys(actions);
     if (!keys.length) return;
-    const pickedKey =
-      (clipName && keys.find((k) => k === clipName)) ||
+    const idleKey =
       keys.find((k) => /idle|stand/i.test(k)) ||
       keys.find((k) => !/walk|run|dance|jump|jog|fall/i.test(k)) ||
       keys[0];
-    const action = actions[pickedKey];
-    if (!action) return;
-    action.timeScale = 0.7;
-    action.reset().fadeIn(0.4).play();
+    const idle = actions[idleKey];
+    if (!idle) return;
+    idle.timeScale = 0.7;
+    idle.reset().fadeIn(0.4).play();
     return () => {
-      action.fadeOut(0.2).stop();
+      idle.fadeOut(0.2).stop();
     };
-  }, [actions, clipName]);
+  }, [actions]);
 
   useEffect(() => {
     cloned.traverse((o: any) => {
@@ -1004,13 +988,7 @@ export default function GppScene({
   onOpenPos,
   onOpenLabelEditor,
   patientLine,
-  pharmacistLine,
-  pharmacistUrl = "/models/pharmacist.glb",
-  patientUrl = "/models/patient.glb",
-  pharmacistClip,
-  patientClip,
-  onPharmacistClips,
-  onPatientClips
+  pharmacistLine
 }: Props) {
   const labelCount = Object.keys(labels).length;
 
@@ -1113,31 +1091,7 @@ export default function GppScene({
         {/* === Khu tư vấn riêng: 1 bàn tròn + 2 ghế đối diện === */}
         <ConsultDesk position={[-3.4, 0, -0.4]} />
 
-        {/* === Dược sĩ + Bệnh nhân: model GLB (URL & pose có thể đổi runtime) === */}
-        <Suspense fallback={null}>
-          <ModelCharacter
-            key={`pharm-${pharmacistUrl}`}
-            url={pharmacistUrl}
-            position={[0, 0, COUNTER_Z - 0.55]}
-            rotationY={0}
-            scale={1.0}
-            label="DƯỢC SĨ (SV)"
-            clipName={pharmacistClip}
-            onClips={onPharmacistClips}
-          />
-        </Suspense>
-        <Suspense fallback={null}>
-          <ModelCharacter
-            key={`pat-${patientUrl}`}
-            url={patientUrl}
-            position={[0.2, 0, COUNTER_Z + 1.1]}
-            rotationY={Math.PI + 0.35}
-            scale={1.0}
-            label="BỆNH NHÂN"
-            clipName={patientClip}
-            onClips={onPatientClips}
-          />
-        </Suspense>
+        {/* === Dược sĩ + Bệnh nhân: tạm ẩn, chờ model mới === */}
 
         {/* === 2 hàng ghế chờ — quay vào trong === */}
         {/* Hàng trái sát tường trái, lưng dựa vào tường (-x), mặt ghế quay sang phải (+x) → rotationY = +π/2 */}
