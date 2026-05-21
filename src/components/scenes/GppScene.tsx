@@ -135,7 +135,7 @@ const DISPLAY_LEFT_X = -COUNTER_W / 2 + 0.25;     // mép trái khu trưng bày
 const DISPLAY_RIGHT_X = -0.8;                      // mép phải — gọn lại, chừa chỗ cho khay tools
 const DISPLAY_TOTAL_W = DISPLAY_RIGHT_X - DISPLAY_LEFT_X;
 const SECTION_W = DISPLAY_TOTAL_W / COUNTER_SECTIONS;
-const TOOLTRAY_X = 0.2;
+const TOOLTRAY_X = 0.55;  // dịch sang phải, gần POS computer hơn để không chồng lên khay bán hàng (PICK_TRAY_CX = -0.55)
 const POS_X = 1.45;
 
 const SHELVES_PER_CAB = 5;
