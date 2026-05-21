@@ -670,18 +670,6 @@ function ConsultDesk({ position }: { position: [number, number, number] }) {
       {/* Ghế đối diện nhau: 1 quay mặt +z, 1 quay -z */}
       <ConsultChair position={[0, 0, -0.8]} rotationY={0} />
       <ConsultChair position={[0, 0, 0.8]} rotationY={Math.PI} />
-      {/* Bảng tên */}
-      <Billboard position={[0, 1.85, 0]}>
-        <Text
-          fontSize={0.085}
-          color="#0f766e"
-          anchorX="center"
-          outlineColor="#ffffff"
-          outlineWidth={0.004}
-        >
-          KHU TƯ VẤN
-        </Text>
-      </Billboard>
     </group>
   );
 }
