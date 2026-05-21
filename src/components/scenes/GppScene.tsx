@@ -164,94 +164,6 @@ function CameraRig({
   return null;
 }
 
-/* ============= CameraEye — biểu tượng mắt nổi 3D, hover sáng lên, click để zoom ============= */
-function CameraEye({
-  position,
-  label,
-  active,
-  onActivate,
-  visibleAlways = false
-}: {
-  position: [number, number, number];
-  label: string;
-  active: boolean; // true khi camera đang ở preset này → ẩn mắt
-  onActivate: () => void;
-  visibleAlways?: boolean; // false => chỉ hiện khi hover vùng xung quanh
-}) {
-  const [hovered, setHovered] = useState(false);
-  const groupRef = useRef<THREE.Group>(null);
-  useFrame(({ clock }) => {
-    const g = groupRef.current;
-    if (!g) return;
-    // bobbing nhẹ — chỉ offset trong local space của Billboard, KHÔNG cộng position[1]
-    // (cộng position[1] sẽ đẩy inner group lên 2× chiều cao, mắt vượt trần phòng).
-    g.position.y = Math.sin(clock.elapsedTime * 2.4) * 0.025;
-    // scale phồng khi hover
-    const target = hovered ? 1.15 : 1.0;
-    g.scale.x += (target - g.scale.x) * 0.2;
-    g.scale.y = g.scale.x;
-    g.scale.z = g.scale.x;
-  });
-  if (active) return null;
-  return (
-    <Billboard position={position}>
-      <group
-        ref={groupRef}
-        onPointerOver={(e) => {
-          e.stopPropagation();
-          setHovered(true);
-          document.body.style.cursor = "pointer";
-        }}
-        onPointerOut={() => {
-          setHovered(false);
-          document.body.style.cursor = "default";
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          onActivate();
-        }}
-      >
-        {/* viền tròn ngoài (sáng khi hover) */}
-        <mesh>
-          <ringGeometry args={[0.105, 0.135, 36]} />
-          <meshBasicMaterial color={hovered ? "#0ea5e9" : "#38bdf8"} transparent opacity={visibleAlways || hovered ? 1 : 0.85} />
-        </mesh>
-        {/* viền nền trắng */}
-        <mesh position={[0, 0, -0.001]}>
-          <circleGeometry args={[0.135, 36]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={visibleAlways || hovered ? 1 : 0.78} />
-        </mesh>
-        {/* tròng mắt */}
-        <mesh position={[0, 0, 0.001]}>
-          <circleGeometry args={[0.065, 32]} />
-          <meshBasicMaterial color="#0c4a6e" />
-        </mesh>
-        {/* con ngươi */}
-        <mesh position={[0, 0, 0.002]}>
-          <circleGeometry args={[0.026, 24]} />
-          <meshBasicMaterial color="#0f172a" />
-        </mesh>
-        {/* highlight */}
-        <mesh position={[0.019, 0.019, 0.003]}>
-          <circleGeometry args={[0.012, 16]} />
-          <meshBasicMaterial color="#ffffff" />
-        </mesh>
-        {/* nhãn ĐẶT BÊN TRÊN mắt — như callout — để mắt có thể nằm sát nóc đối tượng
-            mà nhãn không bị chìm vào trong đối tượng */}
-        <group position={[0, 0.215, 0.001]}>
-          <mesh>
-            <planeGeometry args={[Math.max(0.34, label.length * 0.044), 0.085]} />
-            <meshBasicMaterial color="#0f172a" transparent opacity={hovered ? 0.95 : 0.78} />
-          </mesh>
-          <Text position={[0, 0, 0.002]} fontSize={0.045} color="#f8fafc" anchorX="center" anchorY="middle">
-            {label}
-          </Text>
-        </group>
-      </group>
-    </Billboard>
-  );
-}
-
 /* ============= Hộp thuốc — kích thước & nhãn động ============= */
 type BoxVariant = "banner" | "panel" | "stripe" | "twotone" | "classic" | "flag";
 type BoxStyle = { w: number; h: number; d: number; variant: BoxVariant; copies: number };
@@ -1989,43 +1901,6 @@ export default function GppScene({
 
         <ContactShadows position={[0, 0.001, 0]} opacity={0.45} scale={20} blur={2.5} far={4} />
 
-        {/* === Camera "eyes" — đặt sát NÓC từng đối tượng (nhãn hiện phía trên) === */}
-        {/* Tủ lạnh — nóc tủ ở world y=1.70 → mắt ngồi gần như chạm nóc */}
-        <CameraEye
-          position={[-ROOM_W / 2 + 0.36, 1.78, COUNTER_Z + 0.1]}
-          label="Tủ lạnh"
-          active={cameraPreset === "fridge"}
-          onActivate={() => setCameraPreset("fridge")}
-        />
-        {/* Quầy giao dịch — mặt quầy y=1.0, POS cao ~1.5 → mắt ngay trên đỉnh POS */}
-        <CameraEye
-          position={[0.5, 1.60, COUNTER_Z + 0.1]}
-          label="Quầy giao dịch"
-          active={cameraPreset === "counter"}
-          onActivate={() => setCameraPreset("counter")}
-        />
-        {/* Dãy tủ thuốc phía sau — nóc label box ở world y≈2.47 */}
-        <CameraEye
-          position={[0, 2.55, BACK_Z + 0.6]}
-          label="Dãy tủ sau"
-          active={cameraPreset === "back_cabinets"}
-          onActivate={() => setCameraPreset("back_cabinets")}
-        />
-        {/* Dãy tủ thuốc bên phải — nóc label box ở world y≈2.47 */}
-        <CameraEye
-          position={[ROOM_W / 2 - 0.6, 2.55, 0.6]}
-          label="Tủ bên"
-          active={cameraPreset === "side_cabinets"}
-          onActivate={() => setCameraPreset("side_cabinets")}
-        />
-        {/* Bàn tư vấn — mặt bàn tròn ở world y=0.76 → mắt sát mặt bàn */}
-        <CameraEye
-          position={[-3.4, 0.95, -0.4]}
-          label="Bàn tư vấn"
-          active={cameraPreset === "consult"}
-          onActivate={() => setCameraPreset("consult")}
-        />
-
         <CameraRig presetKey={cameraPreset} controlsRef={controlsRef} firstMount={firstMount} />
 
         <OrbitControls
@@ -2038,37 +1913,6 @@ export default function GppScene({
         />
       </Canvas>
 
-      {/* === Nút quay lại toàn cảnh === */}
-      {cameraPreset !== "default" && (
-        <button
-          type="button"
-          onClick={() => setCameraPreset("default")}
-          style={{
-            position: "absolute",
-            top: 12,
-            left: 12,
-            background: "rgba(15,23,42,0.9)",
-            color: "#f8fafc",
-            border: "1px solid #38bdf8",
-            borderRadius: 8,
-            padding: "8px 14px",
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: "pointer",
-            boxShadow: "0 6px 18px rgba(0,0,0,0.35)",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            zIndex: 5
-          }}
-        >
-          <span style={{ fontSize: 16 }}>←</span>
-          Quay lại toàn cảnh
-          <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4 }}>
-            (đang xem: {currentPreset.label})
-          </span>
-        </button>
-      )}
 
       {pendingLabel && (
         <div
@@ -2099,11 +1943,52 @@ export default function GppScene({
           right: 10,
           display: "flex",
           gap: 8,
-          flexWrap: "wrap"
+          flexWrap: "wrap",
+          alignItems: "center"
         }}
       >
         <button onClick={onOpenLabelEditor}>🏷️ Soạn nhãn HDSD (kéo/dán)</button>
         <button onClick={onOpenPos}>💻 Mở phần mềm POS</button>
+
+        {/* === Group nút chuyển view camera === */}
+        <span
+          style={{
+            display: "inline-flex",
+            gap: 6,
+            alignItems: "center",
+            padding: "4px 10px",
+            background: "rgba(15,23,42,0.65)",
+            borderRadius: 8,
+            border: "1px solid rgba(56,189,248,0.35)"
+          }}
+        >
+          <span style={{ fontSize: 11, color: "#94a3b8", marginRight: 4 }}>📷 Góc nhìn:</span>
+          {(Object.keys(CAMERA_PRESETS) as CameraPresetKey[]).map((k) => {
+            const p = CAMERA_PRESETS[k];
+            const active = cameraPreset === k;
+            return (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setCameraPreset(k)}
+                style={{
+                  padding: "5px 10px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  borderRadius: 6,
+                  border: active ? "1px solid #38bdf8" : "1px solid rgba(148,163,184,0.4)",
+                  background: active ? "#0ea5e9" : "rgba(30,41,59,0.85)",
+                  color: active ? "#0f172a" : "#e2e8f0",
+                  cursor: active ? "default" : "pointer",
+                  whiteSpace: "nowrap"
+                }}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+        </span>
+
         <span className="tag">Đã chọn: {picked.length}</span>
         <span className={"tag " + (labelCount ? "green" : "")}>
           Đã dán nhãn: {labelCount}/{picked.length || "—"}
