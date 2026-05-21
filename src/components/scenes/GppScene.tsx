@@ -268,7 +268,10 @@ function Cabinet({
       {drugs.map((drug, idx) => {
         const shelf = idx % SHELVES_PER_CAB;
         const slot = Math.floor(idx / SHELVES_PER_CAB) % DRUGS_PER_SHELF;
-        const y = 0.1 + shelf * SHELF_H + SHELF_H / 2;
+        // shelf=0 sits on the cabinet floor (top y = 0.08); shelf>=1 sits on the i=shelf-1 plank
+        // (plank center y = 0.1 + shelf*SHELF_H, thickness 0.02 → top y = 0.11 + shelf*SHELF_H)
+        const shelfTopY = shelf === 0 ? 0.08 : 0.11 + shelf * SHELF_H;
+        const y = shelfTopY + 0.12; // 0.12 = half of DrugBox height (0.24)
         const x = (slot - (DRUGS_PER_SHELF - 1) / 2) * (W / DRUGS_PER_SHELF);
         const z = -D / 2 + 0.22;
         const isPicked = picked.includes(drug.id);
@@ -1315,18 +1318,20 @@ function Floor() {
   );
 }
 function Walls() {
+  const sideDepth = ROOM_D / 2 - BACK_Z;
+  const sideCenterZ = (BACK_Z + ROOM_D / 2) / 2;
   return (
     <group>
       <mesh position={[0, ROOM_H / 2, BACK_Z - 0.05]} receiveShadow>
         <boxGeometry args={[ROOM_W, ROOM_H, 0.1]} />
         <meshStandardMaterial color="#ecfeff" roughness={0.85} />
       </mesh>
-      <mesh position={[-ROOM_W / 2 - 0.05, ROOM_H / 2, 0]} receiveShadow>
-        <boxGeometry args={[0.1, ROOM_H, ROOM_D]} />
+      <mesh position={[-ROOM_W / 2 - 0.05, ROOM_H / 2, sideCenterZ]} receiveShadow>
+        <boxGeometry args={[0.1, ROOM_H, sideDepth]} />
         <meshStandardMaterial color="#ecfeff" roughness={0.85} />
       </mesh>
-      <mesh position={[ROOM_W / 2 + 0.05, ROOM_H / 2, 0]} receiveShadow>
-        <boxGeometry args={[0.1, ROOM_H, ROOM_D]} />
+      <mesh position={[ROOM_W / 2 + 0.05, ROOM_H / 2, sideCenterZ]} receiveShadow>
+        <boxGeometry args={[0.1, ROOM_H, sideDepth]} />
         <meshStandardMaterial color="#ecfeff" roughness={0.85} />
       </mesh>
     </group>
