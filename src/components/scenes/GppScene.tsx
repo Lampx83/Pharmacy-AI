@@ -65,13 +65,13 @@ const SIDE_CABINETS = CABINETS.filter((c) => c.zone === "side");
 const FRONT_SECTIONS = CABINETS.filter((c) => c.zone === "front");
 
 const BACK_CAB_W = 1.7;
-const BACK_CAB_H = 2.6;
+const BACK_CAB_H = 2.05;
 const BACK_CAB_D = 0.55;
 const BACK_CAB_GAP = 0.18;
 const BACK_TOTAL_W = BACK_CABINETS.length * BACK_CAB_W + (BACK_CABINETS.length - 1) * BACK_CAB_GAP;
 
 const SIDE_CAB_W = 1.6;
-const SIDE_CAB_H = 2.6;
+const SIDE_CAB_H = 2.05;
 const SIDE_CAB_D = 0.55;
 const SIDE_CAB_GAP = 0.18;
 const SIDE_TOTAL_W = SIDE_CABINETS.length * SIDE_CAB_W + (SIDE_CABINETS.length - 1) * SIDE_CAB_GAP;
@@ -126,43 +126,43 @@ function DrugBox({
         onPick();
       }}
     >
-      <RoundedBox args={[0.22, 0.32, 0.14]} radius={0.012}>
+      <RoundedBox args={[0.17, 0.24, 0.11]} radius={0.01}>
         <meshStandardMaterial
           color={hovered ? "#fef9c3" : drug.bodyColor}
           roughness={0.55}
         />
       </RoundedBox>
-      <mesh position={[0, 0.135, 0.073]}>
-        <planeGeometry args={[0.22, 0.05]} />
+      <mesh position={[0, 0.1, 0.058]}>
+        <planeGeometry args={[0.17, 0.038]} />
         <meshStandardMaterial color={drug.groupAccent} />
       </mesh>
       <Text
-        position={[0, 0.04, 0.075]}
-        fontSize={0.038}
+        position={[0, 0.03, 0.06]}
+        fontSize={0.03}
         color="#0f172a"
         anchorX="center"
-        maxWidth={0.2}
+        maxWidth={0.16}
       >
         {drug.name}
       </Text>
-      <Text position={[0, -0.02, 0.075]} fontSize={0.026} color="#334155" anchorX="center">
+      <Text position={[0, -0.018, 0.06]} fontSize={0.022} color="#334155" anchorX="center">
         {drug.strength}
       </Text>
-      <Text position={[0, -0.07, 0.075]} fontSize={0.022} color="#475569" anchorX="center">
+      <Text position={[0, -0.058, 0.06]} fontSize={0.018} color="#475569" anchorX="center">
         {drug.sku}
       </Text>
       {drug.isRx && (
-        <Text position={[-0.08, 0.14, 0.076]} fontSize={0.024} color="#ffffff" anchorX="center">
+        <Text position={[-0.06, 0.105, 0.061]} fontSize={0.02} color="#ffffff" anchorX="center">
           Rx
         </Text>
       )}
       {label && (
-        <group position={[0, -0.18, 0.075]}>
+        <group position={[0, -0.14, 0.06]}>
           <mesh>
-            <planeGeometry args={[0.22, 0.08]} />
+            <planeGeometry args={[0.17, 0.06]} />
             <meshStandardMaterial color="#fde68a" />
           </mesh>
-          <Text position={[0, 0, 0.001]} fontSize={0.018} color="#78350f" anchorX="center">
+          <Text position={[0, 0, 0.001]} fontSize={0.015} color="#78350f" anchorX="center">
             {label.morning > 0 ? `S${label.morning} ` : ""}
             {label.noon > 0 ? `T${label.noon} ` : ""}
             {label.afternoon > 0 ? `C${label.afternoon} ` : ""}
@@ -392,6 +392,7 @@ function PosComputer({ onClick }: { onClick: () => void }) {
   return (
     <group
       position={[1.0, COUNTER_H + 0.05, COUNTER_Z - 0.12]}
+      scale={0.72}
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
     >
@@ -626,6 +627,139 @@ function ModelCharacter({
           {label}
         </Text>
       </Billboard>
+    </group>
+  );
+}
+
+/* ============= Khu tư vấn: 1 bàn + 2 ghế đối diện ============= */
+function ConsultDesk({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      {/* Bàn tròn */}
+      <mesh position={[0, 0.74, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.5, 0.5, 0.04, 32]} />
+        <meshStandardMaterial color="#fef3c7" roughness={0.45} />
+      </mesh>
+      {/* Chân bàn */}
+      <mesh position={[0, 0.36, 0]} castShadow>
+        <cylinderGeometry args={[0.05, 0.08, 0.72, 16]} />
+        <meshStandardMaterial color="#92400e" />
+      </mesh>
+      <mesh position={[0, 0.02, 0]} castShadow>
+        <cylinderGeometry args={[0.22, 0.22, 0.04, 24]} />
+        <meshStandardMaterial color="#92400e" />
+      </mesh>
+      {/* Ghế đối diện nhau: 1 quay mặt +z, 1 quay -z */}
+      <ConsultChair position={[0, 0, -0.8]} rotationY={0} />
+      <ConsultChair position={[0, 0, 0.8]} rotationY={Math.PI} />
+      {/* Bảng tên */}
+      <Billboard position={[0, 1.85, 0]}>
+        <Text
+          fontSize={0.085}
+          color="#0f766e"
+          anchorX="center"
+          outlineColor="#ffffff"
+          outlineWidth={0.004}
+        >
+          KHU TƯ VẤN
+        </Text>
+      </Billboard>
+    </group>
+  );
+}
+function ConsultChair({
+  position,
+  rotationY
+}: {
+  position: [number, number, number];
+  rotationY: number;
+}) {
+  return (
+    <group position={position} rotation={[0, rotationY, 0]}>
+      {/* mặt ghế */}
+      <mesh position={[0, 0.45, 0]} castShadow>
+        <boxGeometry args={[0.5, 0.05, 0.5]} />
+        <meshStandardMaterial color="#0ea5e9" roughness={0.6} />
+      </mesh>
+      {/* tựa lưng */}
+      <mesh position={[0, 0.78, -0.22]} castShadow>
+        <boxGeometry args={[0.5, 0.55, 0.05]} />
+        <meshStandardMaterial color="#0ea5e9" roughness={0.6} />
+      </mesh>
+      {/* 4 chân ghế */}
+      {[
+        [-0.2, 0, -0.2],
+        [0.2, 0, -0.2],
+        [-0.2, 0, 0.2],
+        [0.2, 0, 0.2]
+      ].map((p, i) => (
+        <mesh key={i} position={[p[0], 0.22, p[2]]} castShadow>
+          <boxGeometry args={[0.04, 0.45, 0.04]} />
+          <meshStandardMaterial color="#1e293b" metalness={0.4} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/* ============= Tủ lạnh cửa kín (closed-door, không xuyên thấu) ============= */
+function ClosedFridge({
+  position,
+  rotationY = 0
+}: {
+  position: [number, number, number];
+  rotationY?: number;
+}) {
+  return (
+    <group position={position} rotation={[0, rotationY, 0]}>
+      {/* thân tủ */}
+      <mesh position={[0, 0.85, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.78, 1.7, 0.7]} />
+        <meshStandardMaterial color="#f8fafc" roughness={0.4} metalness={0.05} />
+      </mesh>
+      {/* viền dọc giữa 2 cửa */}
+      <mesh position={[0, 1.05, 0.36]}>
+        <boxGeometry args={[0.74, 0.02, 0.005]} />
+        <meshStandardMaterial color="#cbd5e1" />
+      </mesh>
+      {/* cửa trên */}
+      <mesh position={[0, 1.5, 0.36]} castShadow>
+        <boxGeometry args={[0.74, 0.7, 0.025]} />
+        <meshStandardMaterial color="#e2e8f0" roughness={0.45} metalness={0.1} />
+      </mesh>
+      {/* cửa dưới */}
+      <mesh position={[0, 0.65, 0.36]} castShadow>
+        <boxGeometry args={[0.74, 0.95, 0.025]} />
+        <meshStandardMaterial color="#e2e8f0" roughness={0.45} metalness={0.1} />
+      </mesh>
+      {/* tay nắm trên */}
+      <mesh position={[-0.32, 1.5, 0.378]}>
+        <boxGeometry args={[0.04, 0.32, 0.02]} />
+        <meshStandardMaterial color="#94a3b8" metalness={0.6} roughness={0.35} />
+      </mesh>
+      {/* tay nắm dưới */}
+      <mesh position={[-0.32, 0.65, 0.378]}>
+        <boxGeometry args={[0.04, 0.45, 0.02]} />
+        <meshStandardMaterial color="#94a3b8" metalness={0.6} roughness={0.35} />
+      </mesh>
+      {/* tem nhãn dán */}
+      <mesh position={[0, 1.62, 0.38]}>
+        <planeGeometry args={[0.36, 0.12]} />
+        <meshStandardMaterial color="#0f766e" />
+      </mesh>
+      <Text position={[0, 1.62, 0.382]} fontSize={0.04} color="#ecfeff" anchorX="center">
+        TỦ LẠNH 2–8°C
+      </Text>
+      {/* đèn báo */}
+      <mesh position={[0.3, 1.78, 0.38]}>
+        <circleGeometry args={[0.014, 16]} />
+        <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={0.7} />
+      </mesh>
+      {/* đế tủ */}
+      <mesh position={[0, 0.025, 0]} castShadow>
+        <boxGeometry args={[0.8, 0.05, 0.72]} />
+        <meshStandardMaterial color="#475569" />
+      </mesh>
     </group>
   );
 }
@@ -878,13 +1012,8 @@ export default function GppScene({
         <Floor />
         <Walls />
 
-        {/* Đèn LED trần + quạt + biển chữ thập GPP */}
-        <CeilingLight position={[-2.0, ROOM_H - 0.05, 0.6]} />
-        <CeilingLight position={[2.0, ROOM_H - 0.05, 0.6]} />
-        <CeilingLight position={[0, ROOM_H - 0.05, COUNTER_Z + 0.5]} />
+        {/* Quạt trần xoay (bỏ đèn trần + chữ thập theo yêu cầu) */}
         <CeilingFan position={[0, ROOM_H - 0.45, 0.4]} />
-        <CrossSign position={[-3.4, BACK_CAB_H + 0.4, BACK_Z + 0.1]} />
-        <CrossSign position={[3.4, BACK_CAB_H + 0.4, BACK_Z + 0.1]} />
 
         {/* Điều hoà trên tường sau */}
         <ACUnit position={[-1.5, ROOM_H - 0.5, BACK_Z + 0.04]} />
@@ -938,35 +1067,11 @@ export default function GppScene({
         <ToolTray onClick={onOpenLabelEditor} />
         <PosComputer onClick={onOpenPos} />
 
-        {/* === Tủ lạnh GLB === */}
-        <ModelObject url="/models/fridge.glb" position={[-3.4, 0, COUNTER_Z + 0.1]} rotationY={Math.PI / 6} scale={1.4} />
-        <Billboard position={[-3.4, 1.85, COUNTER_Z + 0.1]}>
-          <Text fontSize={0.07} color="#0f766e" anchorX="center">
-            TỦ LẠNH 2–8°C
-          </Text>
-        </Billboard>
+        {/* === Tủ lạnh cửa kín (đặc, không nhìn xuyên) === */}
+        <ClosedFridge position={[-3.4, 0, COUNTER_Z + 0.1]} rotationY={Math.PI / 6} />
 
-        {/* === Khu tư vấn riêng: sofa GLB + bàn === */}
-        <group position={[-3.4, 0, -1.0]}>
-          {/* Sofa 2 người */}
-          <ModelObject url="/models/sofa.glb" position={[0, 0, -0.4]} rotationY={Math.PI / 2} scale={0.9} />
-          <ModelObject url="/models/sofa.glb" position={[0, 0, 0.8]} rotationY={-Math.PI / 2} scale={0.9} />
-          {/* Bàn ở giữa */}
-          <mesh position={[0, 0.42, 0.2]} castShadow receiveShadow>
-            <boxGeometry args={[0.9, 0.05, 0.6]} />
-            <meshStandardMaterial color="#fef3c7" roughness={0.45} />
-          </mesh>
-          <mesh position={[0, 0.21, 0.2]} castShadow>
-            <cylinderGeometry args={[0.04, 0.06, 0.42, 12]} />
-            <meshStandardMaterial color="#92400e" />
-          </mesh>
-          {/* Bảng tên */}
-          <Billboard position={[0, 1.55, 0.2]}>
-            <Text fontSize={0.085} color="#0f766e" anchorX="center" outlineColor="#ffffff" outlineWidth={0.004}>
-              KHU TƯ VẤN RIÊNG
-            </Text>
-          </Billboard>
-        </group>
+        {/* === Khu tư vấn riêng: 1 bàn tròn + 2 ghế đối diện === */}
+        <ConsultDesk position={[-3.4, 0, -0.4]} />
 
         {/* === Dược sĩ + Bệnh nhân: model GLB === */}
         <ModelCharacter
@@ -990,11 +1095,9 @@ export default function GppScene({
         {/* Hàng phải sát tường phải, lưng dựa vào tường (+x), mặt quay sang trái (-x) → rotationY = -π/2 */}
         <WaitingChair position={[ROOM_W / 2 - 0.4, 0, 2.8]} rotationY={-Math.PI / 2} />
 
-        {/* === 4 cây cảnh lay nhẹ === */}
-        <AnimatedPlant position={[-ROOM_W / 2 + 0.5, 0, COUNTER_Z + 1.6]} scale={1.4} phase={0} />
-        <AnimatedPlant position={[ROOM_W / 2 - 0.5, 0, COUNTER_Z + 1.6]} scale={1.4} phase={1.2} />
-        <AnimatedPlant position={[-2.5, 0, COUNTER_Z + 2.4]} scale={1.0} phase={2.4} />
-        <AnimatedPlant position={[2.5, 0, COUNTER_Z + 2.4]} scale={1.0} phase={3.6} />
+        {/* === 2 cây cảnh lay nhẹ — đặt ở đầu mỗi hàng ghế (front-end) === */}
+        <AnimatedPlant position={[-ROOM_W / 2 + 0.4, 0, 1.65]} scale={1.4} phase={0} />
+        <AnimatedPlant position={[ROOM_W / 2 - 0.4, 0, 1.65]} scale={1.4} phase={1.2} />
 
         {/* === Bubble thoại Billboard === */}
         {patientLine && (
