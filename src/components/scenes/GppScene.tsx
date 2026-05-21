@@ -73,8 +73,19 @@ const BACK_CABINETS = CABINETS.filter((c) => c.zone === "back");
 const SIDE_CABINETS = CABINETS.filter((c) => c.zone === "side");
 const FRONT_SECTIONS = CABINETS.filter((c) => c.zone === "front");
 
-/* ============= Camera presets — bấm "mắt" ở mỗi điểm trong scene để zoom cận cảnh ============= */
-type CameraPresetKey = "default" | "fridge" | "counter" | "back_cabinets" | "side_cabinets" | "consult";
+/* ============= Camera presets — chọn từ thanh nút bên dưới ============= */
+type CameraPresetKey =
+  | "default"
+  | "fridge"
+  | "counter"
+  | "consult"
+  | "cab_rx_abx"
+  | "cab_rx_cardio_dm"
+  | "cab_otc_pain_cold"
+  | "cab_otc_resp_gi"
+  | "cab_side_herbal"
+  | "cab_side_supp"
+  | "cab_side_cosmetic";
 type CameraPreset = {
   label: string;
   pos: [number, number, number];
@@ -82,13 +93,22 @@ type CameraPreset = {
   minDist: number;
   maxDist: number;
 };
+// Toạ độ x của 4 tủ sau: -BACK_TOTAL_W/2 + 0.85 + i*1.88  (W=1.7, gap=0.18)
+// Toạ độ z của 3 tủ bên: -SIDE_TOTAL_W/2 + 0.8 + i*1.78 + 0.6 (W=1.6, gap=0.18, lệch 0.6)
 const CAMERA_PRESETS: Record<CameraPresetKey, CameraPreset> = {
-  default:       { label: "Toàn cảnh",          pos: [3.4, 4.0, 5.5],   target: [0, 0.9, -0.4],     minDist: 2.5, maxDist: 14 },
-  fridge:        { label: "Tủ lạnh 2-8°C",      pos: [-1.6, 1.6, 1.5],  target: [-3.6, 1.0, 1.45],  minDist: 0.8, maxDist: 5  },
-  counter:       { label: "Quầy giao dịch",     pos: [0.0, 1.9, 3.4],   target: [0.0, 1.05, 1.0],   minDist: 1.5, maxDist: 8  },
-  back_cabinets: { label: "Tủ thuốc sau",       pos: [0.0, 2.4, 1.8],   target: [0.0, 1.4, -1.6],   minDist: 1.5, maxDist: 9  },
-  side_cabinets: { label: "Tủ thuốc bên",       pos: [1.3, 1.8, 0.6],   target: [3.6, 1.3, 0.6],    minDist: 1.0, maxDist: 7  },
-  consult:       { label: "Khu tư vấn",         pos: [-1.6, 2.0, 1.2],  target: [-3.4, 0.8, -0.4],  minDist: 1.0, maxDist: 7  }
+  default:           { label: "Toàn cảnh",          pos: [3.4, 4.0, 5.5],     target: [0, 0.9, -0.4],         minDist: 2.5, maxDist: 14 },
+  fridge:            { label: "Tủ lạnh 2-8°C",      pos: [-1.6, 1.6, 1.5],    target: [-3.6, 1.0, 1.45],      minDist: 0.8, maxDist: 5  },
+  counter:           { label: "Quầy giao dịch",     pos: [0.0, 1.9, 3.4],     target: [0.0, 1.05, 1.0],       minDist: 1.5, maxDist: 8  },
+  consult:           { label: "Khu tư vấn",         pos: [-1.6, 2.0, 1.2],    target: [-3.4, 0.8, -0.4],      minDist: 1.0, maxDist: 7  },
+  // 4 tủ sau — camera đứng cách tủ 2m, hơi cao hơn tâm tủ
+  cab_rx_abx:        { label: "Kháng sinh",         pos: [-2.82, 1.6, -0.20], target: [-2.82, 1.30, -2.125],  minDist: 0.8, maxDist: 4 },
+  cab_rx_cardio_dm:  { label: "Tim mạch–Tiểu đường",pos: [-0.94, 1.6, -0.20], target: [-0.94, 1.30, -2.125],  minDist: 0.8, maxDist: 4 },
+  cab_otc_pain_cold: { label: "Giảm đau–Ho cảm",    pos: [ 0.94, 1.6, -0.20], target: [ 0.94, 1.30, -2.125],  minDist: 0.8, maxDist: 4 },
+  cab_otc_resp_gi:   { label: "Hô hấp–Tiêu hoá",    pos: [ 2.82, 1.6, -0.20], target: [ 2.82, 1.30, -2.125],  minDist: 0.8, maxDist: 4 },
+  // 3 tủ bên — camera đứng cách tủ ~1.8m về phía -x (vào trong phòng)
+  cab_side_herbal:   { label: "Dược liệu",          pos: [ 2.45, 1.6, -1.18], target: [ 4.225, 1.30, -1.18],  minDist: 0.8, maxDist: 4 },
+  cab_side_supp:     { label: "TPCN–Vitamin",       pos: [ 2.45, 1.6,  0.60], target: [ 4.225, 1.30,  0.60],  minDist: 0.8, maxDist: 4 },
+  cab_side_cosmetic: { label: "Mỹ phẩm–DCYT",       pos: [ 2.45, 1.6,  2.38], target: [ 4.225, 1.30,  2.38],  minDist: 0.8, maxDist: 4 }
 };
 
 const BACK_CAB_W = 1.7;
@@ -412,7 +432,11 @@ function DrugBox({
         fontSize={nameSize}
         color={nameColor}
         anchorX="center"
+        anchorY="middle"
+        textAlign="center"
         maxWidth={w * 0.92}
+        lineHeight={1.05}
+        overflowWrap="break-word"
       >
         {drug.brand || drug.name}
       </Text>
@@ -421,7 +445,10 @@ function DrugBox({
         fontSize={strSize}
         color="#334155"
         anchorX="center"
+        anchorY="middle"
+        textAlign="center"
         maxWidth={w * 0.92}
+        overflowWrap="break-word"
       >
         {drug.strength}
       </Text>
