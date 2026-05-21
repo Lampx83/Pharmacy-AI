@@ -11,7 +11,7 @@
  *   - Tủ lạnh fridge.glb, dược sĩ pharmacist.glb, bệnh nhân patient.glb
  *   - Hàng ghế chờ quay vào trong
  */
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Box3 as THREE_BOX3, Vector3 as THREE_VECTOR3 } from "three";
 import {
@@ -121,33 +121,45 @@ const POS_X = 1.45;
 
 const SHELVES_PER_CAB = 5;
 
-/* ============= CameraRig — lerp camera + target mỗi khi preset đổi ============= */
+/* ============= CameraRig — chỉ lerp trong ~700ms ngay sau khi preset đổi.
+   Sau khoảng thời gian đó dừng hẳn để OrbitControls trả lại toàn quyền cho user
+   (không bị "snap về" vị trí mặc định khi user xoay/zoom). ============= */
 function CameraRig({
   presetKey,
-  controlsRef
+  controlsRef,
+  firstMount
 }: {
   presetKey: CameraPresetKey;
-  controlsRef: React.MutableRefObject<any>;
+  controlsRef: MutableRefObject<any>;
+  firstMount: MutableRefObject<boolean>;
 }) {
-  const animating = useRef(true);
+  const startedAt = useRef<number | null>(null);
+  // Trigger lerp khi presetKey đổi.
+  // Bỏ qua lần render đầu để camera giữ nguyên vị trí Canvas init (đỡ giật).
   useEffect(() => {
-    animating.current = true;
-  }, [presetKey]);
+    if (firstMount.current) {
+      firstMount.current = false;
+      return;
+    }
+    startedAt.current = performance.now();
+  }, [presetKey, firstMount]);
   useFrame(() => {
-    if (!animating.current) return;
+    if (startedAt.current == null) return;
+    const elapsed = performance.now() - startedAt.current;
+    if (elapsed > 700) {
+      startedAt.current = null;
+      return;
+    }
     const c = controlsRef.current;
     if (!c) return;
     const preset = CAMERA_PRESETS[presetKey];
     const tgt = new THREE_VECTOR3(preset.target[0], preset.target[1], preset.target[2]);
     const pos = new THREE_VECTOR3(preset.pos[0], preset.pos[1], preset.pos[2]);
-    c.target.lerp(tgt, 0.10);
-    c.object.position.lerp(pos, 0.10);
+    c.target.lerp(tgt, 0.12);
+    c.object.position.lerp(pos, 0.12);
     c.minDistance = preset.minDist;
     c.maxDistance = preset.maxDist;
     c.update();
-    if (c.target.distanceTo(tgt) < 0.01 && c.object.position.distanceTo(pos) < 0.01) {
-      animating.current = false;
-    }
   });
   return null;
 }
@@ -200,37 +212,37 @@ function CameraEye({
       >
         {/* viền tròn ngoài (sáng khi hover) */}
         <mesh>
-          <ringGeometry args={[0.10, 0.13, 32]} />
-          <meshBasicMaterial color={hovered ? "#0ea5e9" : "#38bdf8"} transparent opacity={visibleAlways || hovered ? 0.95 : 0.6} />
+          <ringGeometry args={[0.075, 0.095, 32]} />
+          <meshBasicMaterial color={hovered ? "#0ea5e9" : "#38bdf8"} transparent opacity={visibleAlways || hovered ? 0.95 : 0.7} />
         </mesh>
         {/* viền nền trắng */}
         <mesh position={[0, 0, -0.001]}>
-          <circleGeometry args={[0.13, 32]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={visibleAlways || hovered ? 0.95 : 0.55} />
+          <circleGeometry args={[0.095, 32]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={visibleAlways || hovered ? 0.95 : 0.6} />
         </mesh>
         {/* tròng mắt */}
         <mesh position={[0, 0, 0.001]}>
-          <circleGeometry args={[0.06, 32]} />
+          <circleGeometry args={[0.045, 32]} />
           <meshBasicMaterial color="#0c4a6e" />
         </mesh>
         {/* con ngươi */}
         <mesh position={[0, 0, 0.002]}>
-          <circleGeometry args={[0.025, 24]} />
+          <circleGeometry args={[0.018, 24]} />
           <meshBasicMaterial color="#0f172a" />
         </mesh>
         {/* highlight */}
-        <mesh position={[0.018, 0.018, 0.003]}>
-          <circleGeometry args={[0.012, 16]} />
+        <mesh position={[0.013, 0.013, 0.003]}>
+          <circleGeometry args={[0.009, 16]} />
           <meshBasicMaterial color="#ffffff" />
         </mesh>
         {/* nhãn dưới */}
         {hovered && (
-          <group position={[0, -0.22, 0.001]}>
+          <group position={[0, -0.16, 0.001]}>
             <mesh>
-              <planeGeometry args={[Math.max(0.30, label.length * 0.038), 0.08]} />
+              <planeGeometry args={[Math.max(0.26, label.length * 0.034), 0.07]} />
               <meshBasicMaterial color="#0f172a" transparent opacity={0.88} />
             </mesh>
-            <Text position={[0, 0, 0.002]} fontSize={0.042} color="#f8fafc" anchorX="center" anchorY="middle">
+            <Text position={[0, 0, 0.002]} fontSize={0.036} color="#f8fafc" anchorX="center" anchorY="middle">
               {`🔍 ${label}`}
             </Text>
           </group>
@@ -656,8 +668,9 @@ function Cabinet({
       </group>
 
       {(() => {
-        /* Chia đều thuốc qua 5 tầng theo modulo, sau đó pack từng tầng từ trái sang phải
-           theo bề rộng thực của từng hộp (mỗi SKU stack 2-3 hộp cùng lúc) */
+        /* Chia đều thuốc qua 5 tầng theo modulo, sau đó DÀN ĐỀU mỗi tầng theo
+           "cell" cùng độ rộng (usableW/n), từng hộp đứng giữa cell của mình.
+           Nhờ vậy không còn dồn về 1 phía khi tầng chưa kín. */
         const shelves: DrugSpec[][] = Array.from({ length: SHELVES_PER_CAB }, () => []);
         drugs.forEach((d, i) => shelves[i % SHELVES_PER_CAB].push(d));
         const usableW = W - 0.16; // trừ 2 vách bên (0.08 mỗi vách)
@@ -666,23 +679,19 @@ function Cabinet({
         shelves.forEach((shelfDrugs, shelfIdx) => {
           if (shelfDrugs.length === 0) return;
           const styles = shelfDrugs.map(getBoxStyle);
-          // Nếu tổng width + gap > usableW thì co lại đồng đều
-          const gap = 0.012;
-          const rawTotal = styles.reduce((s, st) => s + st.w, 0) + gap * (styles.length - 1);
-          const fit = rawTotal > usableW ? usableW / rawTotal : 1;
-          // shelf y
+          const n = shelfDrugs.length;
+          // mỗi hộp 1 cell bằng nhau; nếu cell hẹp hơn box rộng nhất, co bộ box theo tỉ lệ
+          const cellW = usableW / n;
+          const maxBoxW = Math.max(...styles.map((s) => s.w));
+          const fit = cellW < maxBoxW + 0.012 ? cellW / (maxBoxW + 0.012) : 1;
           const shelfTopY = shelfIdx === 0 ? 0.08 : 0.11 + shelfIdx * SHELF_H;
-          // x cursor (centered)
-          const totalW = rawTotal * fit;
-          let cursor = -totalW / 2;
           shelfDrugs.forEach((drug, j) => {
             const st = styles[j];
-            const bw = st.w * fit;
             const bh = st.h * fit;
-            const cx = cursor + bw / 2;
+            // tâm box đặt giữa cell j: cell j tọa độ x từ -usableW/2 + j*cellW đến đó+cellW
+            const cx = -usableW / 2 + (j + 0.5) * cellW;
             const cy = shelfTopY + bh / 2;
-            const cz = zFront - st.d * fit * 0.5; // gốc của stack: hộp đầu (i=0) hơi đẩy về trước
-            cursor += bw + gap * fit;
+            const cz = zFront - st.d * fit * 0.5;
             const isPicked = picked.includes(drug.id);
             const slotIdx = picked.indexOf(drug.id);
             const wt = pickSlotPos(slotIdx === -1 ? 0 : slotIdx);
@@ -1455,16 +1464,48 @@ function ClosedFridge({
   const TOP_H = 0.6;
   const TOP_Y = 1.05 + TOP_H / 2; // 1.35
 
-  // 5 mặt hàng cold-chain bên trong tủ
+  /* Tủ chia 5 ngăn (3 dưới + 2 trên), thuốc đặt thẳng trên mặt mỗi ngăn.
+     Item box cao 0.11 → tâm Y = mặt ngăn + 0.055. */
+  const FRIDGE_SHELF_Y = {
+    bottomFloor:   0.07,   // đáy lòng (mặt trên đáy)
+    bottomMid1:    0.42,   // ngăn dưới — giữa thấp
+    bottomMid2:    0.74,   // ngăn dưới — giữa cao
+    midDivider:    1.06,   // mặt trên giá ngăn giữa
+    topShelf:      1.34    // ngăn trên — kệ phụ
+  } as const;
   const stocks: FridgeStock[] = useMemo(
     () => [
-      // Ngăn trên (đông) — vaccine
-      { id: "frg_vaccine_bcg", label: "Vaccine BCG", color: "#bae6fd", compartment: "top", localPos: [-0.2, 1.25, 0.05] },
-      { id: "frg_vaccine_flu", label: "Cúm mùa", color: "#a7f3d0", compartment: "top", localPos: [0.2, 1.25, 0.05] },
-      // Ngăn dưới — insulin / nhỏ mắt / men vi sinh
-      { id: "frg_insulin", label: "Insulin glargine", color: "#fde68a", compartment: "bottom", localPos: [-0.22, 0.7, 0.05] },
-      { id: "frg_eyedrop", label: "Tobradex 5ml", color: "#ddd6fe", compartment: "bottom", localPos: [0.02, 0.7, 0.05] },
-      { id: "frg_probiotic", label: "Enterogermina", color: "#fecaca", compartment: "bottom", localPos: [0.22, 0.7, 0.05] }
+      // === Ngăn trên (đông) — vaccine ===
+      // Trên kệ phụ
+      { id: "frg_vaccine_bcg", label: "Vaccine BCG",     color: "#bae6fd", compartment: "top",
+        localPos: [-0.20, FRIDGE_SHELF_Y.topShelf + 0.055, 0.05] },
+      { id: "frg_vaccine_flu", label: "Cúm mùa",         color: "#a7f3d0", compartment: "top",
+        localPos: [ 0.00, FRIDGE_SHELF_Y.topShelf + 0.055, 0.05] },
+      { id: "frg_vaccine_hpv", label: "HPV Gardasil",    color: "#fbcfe8", compartment: "top",
+        localPos: [ 0.20, FRIDGE_SHELF_Y.topShelf + 0.055, 0.05] },
+      // Trên giá ngăn giữa (đáy ngăn trên)
+      { id: "frg_vaccine_td",  label: "Td uốn ván",      color: "#c7d2fe", compartment: "top",
+        localPos: [-0.20, FRIDGE_SHELF_Y.midDivider + 0.055, 0.05] },
+      { id: "frg_vaccine_var", label: "Thuỷ đậu",        color: "#fef08a", compartment: "top",
+        localPos: [ 0.20, FRIDGE_SHELF_Y.midDivider + 0.055, 0.05] },
+      // === Ngăn dưới — insulin / nhỏ mắt / men vi sinh ===
+      // Kệ trên ngăn dưới
+      { id: "frg_insulin",     label: "Insulin glargine", color: "#fde68a", compartment: "bottom",
+        localPos: [-0.22, FRIDGE_SHELF_Y.bottomMid2 + 0.055, 0.05] },
+      { id: "frg_eyedrop",     label: "Tobradex 5ml",     color: "#ddd6fe", compartment: "bottom",
+        localPos: [ 0.02, FRIDGE_SHELF_Y.bottomMid2 + 0.055, 0.05] },
+      { id: "frg_insulin_apr", label: "Insulin aspart",   color: "#fed7aa", compartment: "bottom",
+        localPos: [ 0.22, FRIDGE_SHELF_Y.bottomMid2 + 0.055, 0.05] },
+      // Kệ giữa ngăn dưới
+      { id: "frg_probiotic",   label: "Enterogermina",    color: "#fecaca", compartment: "bottom",
+        localPos: [-0.20, FRIDGE_SHELF_Y.bottomMid1 + 0.055, 0.05] },
+      { id: "frg_eyedrop_2",   label: "Cravit 5ml",       color: "#ccfbf1", compartment: "bottom",
+        localPos: [ 0.20, FRIDGE_SHELF_Y.bottomMid1 + 0.055, 0.05] },
+      // Đáy lòng ngăn dưới
+      { id: "frg_humanal",     label: "Albumin HSA",      color: "#e9d5ff", compartment: "bottom",
+        localPos: [-0.20, FRIDGE_SHELF_Y.bottomFloor + 0.055, 0.05] },
+      { id: "frg_gonal",       label: "Gonal-F",          color: "#bbf7d0", compartment: "bottom",
+        localPos: [ 0.20, FRIDGE_SHELF_Y.bottomFloor + 0.055, 0.05] }
     ],
     []
   );
@@ -1507,10 +1548,25 @@ function ClosedFridge({
         <boxGeometry args={[0.74, 0.02, 0.66]} />
         <meshStandardMaterial color="#cbd5e1" roughness={0.6} />
       </mesh>
-      {/* giá ngăn giữa */}
+      {/* giá ngăn giữa (chia ngăn trên/dưới) */}
       <mesh position={[0, 1.05, 0]} castShadow receiveShadow>
         <boxGeometry args={[0.74, 0.02, 0.66]} />
         <meshStandardMaterial color="#cbd5e1" roughness={0.6} />
+      </mesh>
+      {/* Kệ phụ trong ngăn trên */}
+      <mesh position={[0, FRIDGE_SHELF_Y.topShelf, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.74, 0.015, 0.62]} />
+        <meshStandardMaterial color="#e2e8f0" roughness={0.55} transparent opacity={0.92} />
+      </mesh>
+      {/* Kệ giữa ngăn dưới */}
+      <mesh position={[0, FRIDGE_SHELF_Y.bottomMid2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.74, 0.015, 0.62]} />
+        <meshStandardMaterial color="#e2e8f0" roughness={0.55} transparent opacity={0.92} />
+      </mesh>
+      {/* Kệ dưới ngăn dưới */}
+      <mesh position={[0, FRIDGE_SHELF_Y.bottomMid1, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.74, 0.015, 0.62]} />
+        <meshStandardMaterial color="#e2e8f0" roughness={0.55} transparent opacity={0.92} />
       </mesh>
 
       {/* Đèn LED bên trong khi cửa mở (chỉ là 1 ô sáng nhẹ trên trần lòng tủ) */}
@@ -1791,6 +1847,7 @@ export default function GppScene({
   /* === Camera view switching === */
   const [cameraPreset, setCameraPreset] = useState<CameraPresetKey>("default");
   const controlsRef = useRef<any>(null);
+  const firstMount = useRef<boolean>(true);
   const currentPreset = CAMERA_PRESETS[cameraPreset];
 
   return (
@@ -1930,47 +1987,52 @@ export default function GppScene({
 
         <ContactShadows position={[0, 0.001, 0]} opacity={0.45} scale={20} blur={2.5} far={4} />
 
-        {/* === Camera "eyes" — click để zoom cận cảnh === */}
+        {/* === Camera "eyes" — đặt sát phía trên mỗi đối tượng === */}
+        {/* Tủ lạnh */}
         <CameraEye
-          position={[-ROOM_W / 2 + 0.36, 2.05, COUNTER_Z + 0.1]}
+          position={[-ROOM_W / 2 + 0.36, 1.85, COUNTER_Z + 0.1]}
           label="Xem tủ lạnh"
           active={cameraPreset === "fridge"}
           onActivate={() => setCameraPreset("fridge")}
         />
+        {/* Quầy giao dịch */}
         <CameraEye
-          position={[0, 1.55, COUNTER_Z + 0.05]}
+          position={[0, 1.45, COUNTER_Z]}
           label="Xem quầy"
           active={cameraPreset === "counter"}
           onActivate={() => setCameraPreset("counter")}
         />
+        {/* Dãy tủ thuốc phía sau */}
         <CameraEye
-          position={[0, 2.95, BACK_Z + 0.4]}
+          position={[0, 2.75, BACK_Z + 0.6]}
           label="Xem dãy tủ sau"
           active={cameraPreset === "back_cabinets"}
           onActivate={() => setCameraPreset("back_cabinets")}
         />
+        {/* Dãy tủ thuốc bên phải */}
         <CameraEye
-          position={[ROOM_W / 2 - 0.5, 2.55, 0.6]}
+          position={[ROOM_W / 2 - 0.7, 2.55, 0.6]}
           label="Xem tủ bên"
           active={cameraPreset === "side_cabinets"}
           onActivate={() => setCameraPreset("side_cabinets")}
         />
+        {/* Bàn tư vấn */}
         <CameraEye
-          position={[-3.4, 1.7, -0.4]}
+          position={[-3.4, 1.35, -0.4]}
           label="Xem bàn tư vấn"
           active={cameraPreset === "consult"}
           onActivate={() => setCameraPreset("consult")}
         />
 
-        <CameraRig presetKey={cameraPreset} controlsRef={controlsRef} />
+        <CameraRig presetKey={cameraPreset} controlsRef={controlsRef} firstMount={firstMount} />
 
         <OrbitControls
           ref={controlsRef}
           enablePan={false}
           maxPolarAngle={Math.PI / 2.1}
-          minDistance={currentPreset.minDist}
-          maxDistance={currentPreset.maxDist}
-          target={currentPreset.target}
+          minDistance={CAMERA_PRESETS.default.minDist}
+          maxDistance={CAMERA_PRESETS.default.maxDist}
+          target={CAMERA_PRESETS.default.target}
         />
       </Canvas>
 
