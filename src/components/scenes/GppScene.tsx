@@ -73,6 +73,24 @@ const BACK_CABINETS = CABINETS.filter((c) => c.zone === "back");
 const SIDE_CABINETS = CABINETS.filter((c) => c.zone === "side");
 const FRONT_SECTIONS = CABINETS.filter((c) => c.zone === "front");
 
+/* ============= Camera presets — bấm "mắt" ở mỗi điểm trong scene để zoom cận cảnh ============= */
+type CameraPresetKey = "default" | "fridge" | "counter" | "back_cabinets" | "side_cabinets" | "consult";
+type CameraPreset = {
+  label: string;
+  pos: [number, number, number];
+  target: [number, number, number];
+  minDist: number;
+  maxDist: number;
+};
+const CAMERA_PRESETS: Record<CameraPresetKey, CameraPreset> = {
+  default:       { label: "Toàn cảnh",          pos: [3.4, 4.0, 5.5],   target: [0, 0.9, -0.4],     minDist: 2.5, maxDist: 14 },
+  fridge:        { label: "Tủ lạnh 2-8°C",      pos: [-1.6, 1.6, 1.5],  target: [-3.6, 1.0, 1.45],  minDist: 0.8, maxDist: 5  },
+  counter:       { label: "Quầy giao dịch",     pos: [0.0, 1.9, 3.4],   target: [0.0, 1.05, 1.0],   minDist: 1.5, maxDist: 8  },
+  back_cabinets: { label: "Tủ thuốc sau",       pos: [0.0, 2.4, 1.8],   target: [0.0, 1.4, -1.6],   minDist: 1.5, maxDist: 9  },
+  side_cabinets: { label: "Tủ thuốc bên",       pos: [1.3, 1.8, 0.6],   target: [3.6, 1.3, 0.6],    minDist: 1.0, maxDist: 7  },
+  consult:       { label: "Khu tư vấn",         pos: [-1.6, 2.0, 1.2],  target: [-3.4, 0.8, -0.4],  minDist: 1.0, maxDist: 7  }
+};
+
 const BACK_CAB_W = 1.7;
 const BACK_CAB_H = 2.05;
 const BACK_CAB_D = 0.55;
@@ -102,6 +120,125 @@ const TOOLTRAY_X = 0.2;
 const POS_X = 1.45;
 
 const SHELVES_PER_CAB = 5;
+
+/* ============= CameraRig — lerp camera + target mỗi khi preset đổi ============= */
+function CameraRig({
+  presetKey,
+  controlsRef
+}: {
+  presetKey: CameraPresetKey;
+  controlsRef: React.MutableRefObject<any>;
+}) {
+  const animating = useRef(true);
+  useEffect(() => {
+    animating.current = true;
+  }, [presetKey]);
+  useFrame(() => {
+    if (!animating.current) return;
+    const c = controlsRef.current;
+    if (!c) return;
+    const preset = CAMERA_PRESETS[presetKey];
+    const tgt = new THREE_VECTOR3(preset.target[0], preset.target[1], preset.target[2]);
+    const pos = new THREE_VECTOR3(preset.pos[0], preset.pos[1], preset.pos[2]);
+    c.target.lerp(tgt, 0.10);
+    c.object.position.lerp(pos, 0.10);
+    c.minDistance = preset.minDist;
+    c.maxDistance = preset.maxDist;
+    c.update();
+    if (c.target.distanceTo(tgt) < 0.01 && c.object.position.distanceTo(pos) < 0.01) {
+      animating.current = false;
+    }
+  });
+  return null;
+}
+
+/* ============= CameraEye — biểu tượng mắt nổi 3D, hover sáng lên, click để zoom ============= */
+function CameraEye({
+  position,
+  label,
+  active,
+  onActivate,
+  visibleAlways = false
+}: {
+  position: [number, number, number];
+  label: string;
+  active: boolean; // true khi camera đang ở preset này → ẩn mắt
+  onActivate: () => void;
+  visibleAlways?: boolean; // false => chỉ hiện khi hover vùng xung quanh
+}) {
+  const [hovered, setHovered] = useState(false);
+  const groupRef = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    const g = groupRef.current;
+    if (!g) return;
+    // bobbing nhẹ
+    g.position.y = position[1] + Math.sin(clock.elapsedTime * 2.4) * 0.025;
+    // scale phồng khi hover
+    const target = hovered ? 1.15 : 1.0;
+    g.scale.x += (target - g.scale.x) * 0.2;
+    g.scale.y = g.scale.x;
+    g.scale.z = g.scale.x;
+  });
+  if (active) return null;
+  return (
+    <Billboard position={position}>
+      <group
+        ref={groupRef}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          setHovered(true);
+          document.body.style.cursor = "pointer";
+        }}
+        onPointerOut={() => {
+          setHovered(false);
+          document.body.style.cursor = "default";
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onActivate();
+        }}
+      >
+        {/* viền tròn ngoài (sáng khi hover) */}
+        <mesh>
+          <ringGeometry args={[0.10, 0.13, 32]} />
+          <meshBasicMaterial color={hovered ? "#0ea5e9" : "#38bdf8"} transparent opacity={visibleAlways || hovered ? 0.95 : 0.6} />
+        </mesh>
+        {/* viền nền trắng */}
+        <mesh position={[0, 0, -0.001]}>
+          <circleGeometry args={[0.13, 32]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={visibleAlways || hovered ? 0.95 : 0.55} />
+        </mesh>
+        {/* tròng mắt */}
+        <mesh position={[0, 0, 0.001]}>
+          <circleGeometry args={[0.06, 32]} />
+          <meshBasicMaterial color="#0c4a6e" />
+        </mesh>
+        {/* con ngươi */}
+        <mesh position={[0, 0, 0.002]}>
+          <circleGeometry args={[0.025, 24]} />
+          <meshBasicMaterial color="#0f172a" />
+        </mesh>
+        {/* highlight */}
+        <mesh position={[0.018, 0.018, 0.003]}>
+          <circleGeometry args={[0.012, 16]} />
+          <meshBasicMaterial color="#ffffff" />
+        </mesh>
+        {/* nhãn dưới */}
+        {hovered && (
+          <group position={[0, -0.22, 0.001]}>
+            <mesh>
+              <planeGeometry args={[Math.max(0.30, label.length * 0.038), 0.08]} />
+              <meshBasicMaterial color="#0f172a" transparent opacity={0.88} />
+            </mesh>
+            <Text position={[0, 0, 0.002]} fontSize={0.042} color="#f8fafc" anchorX="center" anchorY="middle">
+              {`🔍 ${label}`}
+            </Text>
+          </group>
+        )}
+      </group>
+    </Billboard>
+  );
+}
 
 /* ============= Hộp thuốc — kích thước & nhãn động ============= */
 type BoxVariant = "banner" | "panel" | "stripe" | "twotone" | "classic" | "flag";
@@ -1651,6 +1788,11 @@ export default function GppScene({
     []
   );
 
+  /* === Camera view switching === */
+  const [cameraPreset, setCameraPreset] = useState<CameraPresetKey>("default");
+  const controlsRef = useRef<any>(null);
+  const currentPreset = CAMERA_PRESETS[cameraPreset];
+
   return (
     <div
       style={{
@@ -1660,7 +1802,7 @@ export default function GppScene({
         cursor: pendingLabel ? "crosshair" : "default"
       }}
     >
-      <Canvas shadows camera={{ position: [3.4, 4.0, 5.5], fov: 48 }} gl={{ antialias: true }}>
+      <Canvas shadows camera={{ position: CAMERA_PRESETS.default.pos, fov: 48 }} gl={{ antialias: true }}>
         <color attach="background" args={["#e6efe9"]} />
         <fog attach="fog" args={["#e6efe9", 14, 26]} />
         <SoftShadows size={24} samples={10} focus={0.6} />
@@ -1788,14 +1930,81 @@ export default function GppScene({
 
         <ContactShadows position={[0, 0.001, 0]} opacity={0.45} scale={20} blur={2.5} far={4} />
 
+        {/* === Camera "eyes" — click để zoom cận cảnh === */}
+        <CameraEye
+          position={[-ROOM_W / 2 + 0.36, 2.05, COUNTER_Z + 0.1]}
+          label="Xem tủ lạnh"
+          active={cameraPreset === "fridge"}
+          onActivate={() => setCameraPreset("fridge")}
+        />
+        <CameraEye
+          position={[0, 1.55, COUNTER_Z + 0.05]}
+          label="Xem quầy"
+          active={cameraPreset === "counter"}
+          onActivate={() => setCameraPreset("counter")}
+        />
+        <CameraEye
+          position={[0, 2.95, BACK_Z + 0.4]}
+          label="Xem dãy tủ sau"
+          active={cameraPreset === "back_cabinets"}
+          onActivate={() => setCameraPreset("back_cabinets")}
+        />
+        <CameraEye
+          position={[ROOM_W / 2 - 0.5, 2.55, 0.6]}
+          label="Xem tủ bên"
+          active={cameraPreset === "side_cabinets"}
+          onActivate={() => setCameraPreset("side_cabinets")}
+        />
+        <CameraEye
+          position={[-3.4, 1.7, -0.4]}
+          label="Xem bàn tư vấn"
+          active={cameraPreset === "consult"}
+          onActivate={() => setCameraPreset("consult")}
+        />
+
+        <CameraRig presetKey={cameraPreset} controlsRef={controlsRef} />
+
         <OrbitControls
+          ref={controlsRef}
           enablePan={false}
           maxPolarAngle={Math.PI / 2.1}
-          minDistance={2.5}
-          maxDistance={14}
-          target={[0, 0.9, -0.4]}
+          minDistance={currentPreset.minDist}
+          maxDistance={currentPreset.maxDist}
+          target={currentPreset.target}
         />
       </Canvas>
+
+      {/* === Nút quay lại toàn cảnh === */}
+      {cameraPreset !== "default" && (
+        <button
+          type="button"
+          onClick={() => setCameraPreset("default")}
+          style={{
+            position: "absolute",
+            top: 12,
+            left: 12,
+            background: "rgba(15,23,42,0.9)",
+            color: "#f8fafc",
+            border: "1px solid #38bdf8",
+            borderRadius: 8,
+            padding: "8px 14px",
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: "pointer",
+            boxShadow: "0 6px 18px rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            zIndex: 5
+          }}
+        >
+          <span style={{ fontSize: 16 }}>←</span>
+          Quay lại toàn cảnh
+          <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4 }}>
+            (đang xem: {currentPreset.label})
+          </span>
+        </button>
+      )}
 
       {pendingLabel && (
         <div
