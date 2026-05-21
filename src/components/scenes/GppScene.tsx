@@ -11,8 +11,9 @@
  *   - Tủ lạnh fridge.glb, dược sĩ pharmacist.glb, bệnh nhân patient.glb
  *   - Hàng ghế chờ quay vào trong
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
+import { Box3 as THREE_BOX3, Vector3 as THREE_VECTOR3 } from "three";
 import {
   OrbitControls,
   Text,
@@ -41,6 +42,9 @@ useGLTF.preload("/models/pharmacist.glb");
 useGLTF.preload("/models/plant.glb");
 useGLTF.preload("/models/fridge.glb");
 useGLTF.preload("/models/sofa.glb");
+useGLTF.preload("/models/scissors.glb");
+useGLTF.preload("/models/tape.glb");
+useGLTF.preload("/models/notepad.glb");
 
 interface Props {
   picked: string[];
@@ -58,7 +62,8 @@ const ROOM_W = 9.0;
 const ROOM_D = 9.0;
 const ROOM_H = 3.6;
 const BACK_Z = -2.4;
-const RIGHT_X = +3.6;
+// RIGHT_X = mép ngoài dãy tủ bên — đặt sát tường phải (origin = RIGHT_X - D/2)
+const RIGHT_X = ROOM_W / 2;
 
 const BACK_CABINETS = CABINETS.filter((c) => c.zone === "back");
 const SIDE_CABINETS = CABINETS.filter((c) => c.zone === "side");
@@ -264,10 +269,13 @@ function Cabinet({
         const z = -D / 2 + 0.22;
         const isPicked = picked.includes(drug.id);
         const wt = pickSlotPos(picked.indexOf(drug.id) === -1 ? 0 : picked.indexOf(drug.id));
+        // world → local cho group rotated by rotationY quanh trục Y
+        const dx = wt[0] - origin[0];
+        const dz = wt[2] - origin[2];
         const localTarget: [number, number, number] = [
-          (wt[0] - origin[0]) * Math.cos(-rotationY) - (wt[2] - origin[2]) * Math.sin(-rotationY),
+          dx * Math.cos(rotationY) - dz * Math.sin(rotationY),
           wt[1] - origin[1],
-          (wt[0] - origin[0]) * Math.sin(-rotationY) + (wt[2] - origin[2]) * Math.cos(-rotationY)
+          dx * Math.sin(rotationY) + dz * Math.cos(rotationY)
         ];
         return (
           <DrugBox
@@ -515,9 +523,15 @@ function PosComputer({ onClick }: { onClick: () => void }) {
           <meshStandardMaterial color="#475569" />
         </mesh>
       </group>
-      <mesh position={[0.35, 0.018, -0.32]} castShadow>
+      {/* Chuột — đặt bên PHẢI bàn phím nhìn từ phía dược sĩ (dược sĩ đứng ở -z nhìn về +z → phải = -x) */}
+      <mesh position={[-0.35, 0.018, -0.32]} castShadow>
         <boxGeometry args={[0.08, 0.028, 0.13]} />
         <meshStandardMaterial color="#1f2937" roughness={0.55} />
+      </mesh>
+      {/* dây chuột nhỏ nối lên CPU */}
+      <mesh position={[-0.28, 0.018, -0.32]}>
+        <boxGeometry args={[0.06, 0.005, 0.01]} />
+        <meshStandardMaterial color="#0f172a" />
       </mesh>
     </group>
   );
@@ -543,16 +557,50 @@ function ToolTray({ onClick }: { onClick: () => void }) {
       <Text position={[0, 0.02, 0.07]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.026} color="#475569">
         click để soạn nhãn
       </Text>
-      {[
-        ["#ffffff", -0.18],
-        ["#fde68a", 0.0],
-        ["#fbcfe8", 0.18]
-      ].map(([c, dx], i) => (
-        <mesh key={i} position={[dx as number, 0.035, 0.12]}>
-          <boxGeometry args={[0.12, 0.06, 0.08]} />
-          <meshStandardMaterial color={c as string} />
-        </mesh>
-      ))}
+      {/* Kéo / băng keo / xấp nhãn — model GLB từ poly.pizza (CC0) */}
+      <Suspense fallback={null}>
+        <TrayTool url="/models/scissors.glb" position={[-0.17, 0.012, 0.1]} rotationY={Math.PI / 5} targetSize={0.18} />
+        <TrayTool url="/models/tape.glb" position={[0.0, 0.012, 0.1]} rotationY={-Math.PI / 6} targetSize={0.14} />
+        <TrayTool url="/models/notepad.glb" position={[0.17, 0.012, 0.1]} rotationY={Math.PI / 12} targetSize={0.14} />
+      </Suspense>
+    </group>
+  );
+}
+
+/* ============= Helper: load GLB và tự scale về kích thước mong muốn ============= */
+function TrayTool({
+  url,
+  position,
+  rotationY = 0,
+  targetSize
+}: {
+  url: string;
+  position: [number, number, number];
+  rotationY?: number;
+  targetSize: number;
+}) {
+  const { scene } = useGLTF(url) as any;
+  const cloned = useMemo(() => scene.clone(true), [scene]);
+  const [scale, yOffset] = useMemo(() => {
+    const box = new THREE_BOX3();
+    box.setFromObject(cloned);
+    const size = new THREE_VECTOR3();
+    box.getSize(size);
+    const max = Math.max(size.x, size.y, size.z) || 1;
+    const s = targetSize / max;
+    return [s, -box.min.y * s];
+  }, [cloned, targetSize]);
+  useEffect(() => {
+    cloned.traverse((o: any) => {
+      if (o.isMesh) {
+        o.castShadow = true;
+        o.receiveShadow = true;
+      }
+    });
+  }, [cloned]);
+  return (
+    <group position={[position[0], position[1] + yOffset, position[2]]} rotation={[0, rotationY, 0]} scale={scale}>
+      <primitive object={cloned} />
     </group>
   );
 }
@@ -1117,9 +1165,9 @@ export default function GppScene({
           );
         })}
 
-        {/* === 3 tủ bên phải === */}
+        {/* === 3 tủ bên phải — dịch ra xa dãy tủ sau để không sát nhau === */}
         {SIDE_CABINETS.map((cab, i) => {
-          const z = -SIDE_TOTAL_W / 2 + SIDE_CAB_W / 2 + i * (SIDE_CAB_W + SIDE_CAB_GAP) - 0.2;
+          const z = -SIDE_TOTAL_W / 2 + SIDE_CAB_W / 2 + i * (SIDE_CAB_W + SIDE_CAB_GAP) + 0.6;
           return (
             <Cabinet
               key={cab.id}
@@ -1147,8 +1195,8 @@ export default function GppScene({
         <ToolTray onClick={onOpenLabelEditor} />
         <PosComputer onClick={onOpenPos} />
 
-        {/* === Tủ lạnh cửa kín (đặc, không nhìn xuyên) === */}
-        <ClosedFridge position={[-3.4, 0, COUNTER_Z + 0.1]} rotationY={Math.PI / 6} />
+        {/* === Tủ lạnh cửa kín — kê sát tường trái, mặt cửa quay vào trong (+x) === */}
+        <ClosedFridge position={[-ROOM_W / 2 + 0.36, 0, COUNTER_Z + 0.1]} rotationY={Math.PI / 2} />
 
         {/* === Khu tư vấn riêng: 1 bàn tròn + 2 ghế đối diện === */}
         <ConsultDesk position={[-3.4, 0, -0.4]} />
@@ -1161,9 +1209,9 @@ export default function GppScene({
         {/* Hàng phải sát tường phải, lưng dựa vào tường (+x), mặt quay sang trái (-x) → rotationY = -π/2 */}
         <WaitingChair position={[ROOM_W / 2 - 0.4, 0, 2.8]} rotationY={-Math.PI / 2} />
 
-        {/* === 2 cây cảnh lay nhẹ — đặt ở đầu mỗi hàng ghế (front-end) === */}
-        <AnimatedPlant position={[-ROOM_W / 2 + 0.4, 0, 1.65]} scale={1.4} phase={0} />
-        <AnimatedPlant position={[ROOM_W / 2 - 0.4, 0, 1.65]} scale={1.4} phase={1.2} />
+        {/* === 2 cây cảnh — đặt phía SAU ghế chờ (xa quầy), không cản đường vào === */}
+        <AnimatedPlant position={[-ROOM_W / 2 + 0.4, 0, 3.85]} scale={1.4} phase={0} />
+        <AnimatedPlant position={[ROOM_W / 2 - 0.4, 0, 3.85]} scale={1.4} phase={1.2} />
 
         {/* === Bubble thoại: tạm ẩn cùng nhân vật === */}
 
