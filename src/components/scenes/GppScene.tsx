@@ -48,7 +48,6 @@ useGLTF.preload("/models/notepad.glb");
 useGLTF.preload("/models/pen.glb");
 useGLTF.preload("/models/barcode_scanner.glb");
 useGLTF.preload("/models/receipt_printer.glb");
-useGLTF.preload("/models/book.glb");
 
 interface Props {
   picked: string[];
@@ -1940,17 +1939,6 @@ export default function GppScene({
             position={[1.0, COUNTER_H, COUNTER_Z + 0.18]}
             rotationY={Math.PI}
             targetSize={0.24}
-          />
-        </Suspense>
-
-        {/* === Tài liệu tra cứu (Dược thư 2018) — nằm ngang trên mặt bàn === */}
-        <Suspense fallback={null}>
-          <TrayTool
-            url="/models/book.glb"
-            position={[-0.58, COUNTER_H, COUNTER_Z - 0.08]}
-            rotationX={-Math.PI / 2}
-            rotationY={Math.PI / 8}
-            targetSize={0.26}
           />
         </Suspense>
 
