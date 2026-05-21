@@ -11,7 +11,7 @@
  *   - Tủ lạnh fridge.glb, dược sĩ pharmacist.glb, bệnh nhân patient.glb
  *   - Hàng ghế chờ quay vào trong
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
   OrbitControls,
@@ -51,6 +51,12 @@ interface Props {
   onOpenLabelEditor: () => void;
   patientLine?: string;
   pharmacistLine?: string;
+  pharmacistUrl?: string;
+  patientUrl?: string;
+  pharmacistClip?: string;
+  patientClip?: string;
+  onPharmacistClips?: (clips: string[]) => void;
+  onPatientClips?: (clips: string[]) => void;
 }
 
 /* ----------- Layout constants (m) ----------- */
@@ -76,12 +82,21 @@ const SIDE_CAB_D = 0.55;
 const SIDE_CAB_GAP = 0.18;
 const SIDE_TOTAL_W = SIDE_CABINETS.length * SIDE_CAB_W + (SIDE_CABINETS.length - 1) * SIDE_CAB_GAP;
 
-const COUNTER_W = 3.2;
+const COUNTER_W = 4.2;
 const COUNTER_H = 1.0;
-const COUNTER_D = 0.6;
+const COUNTER_D = 0.7;
 const COUNTER_Z = 1.3;
 const COUNTER_SECTIONS = FRONT_SECTIONS.length;
-const SECTION_W = COUNTER_W / COUNTER_SECTIONS;
+/* Khu trưng bày thuốc chỉ chiếm NỬA TRÁI của quầy.
+   - bên trái  ⇢ 3 ngăn (nhỏ mắt / nhỏ mũi / dùng ngoài), mỗi ngăn 2 hàng × 2 hộp
+   - giữa      ⇢ khay ra lẻ + nhãn HDSD
+   - bên phải  ⇢ máy POS hai màn hình */
+const DISPLAY_LEFT_X = -COUNTER_W / 2 + 0.25;     // mép trái khu trưng bày
+const DISPLAY_RIGHT_X = -0.4;                      // mép phải khu trưng bày
+const DISPLAY_TOTAL_W = DISPLAY_RIGHT_X - DISPLAY_LEFT_X;
+const SECTION_W = DISPLAY_TOTAL_W / COUNTER_SECTIONS;
+const TOOLTRAY_X = 0.1;
+const POS_X = 1.45;
 
 const SHELVES_PER_CAB = 5;
 const DRUGS_PER_SHELF = 3;
@@ -296,52 +311,61 @@ function FrontCounter({
 }) {
   return (
     <group position={[0, 0, COUNTER_Z]}>
+      {/* Mặt quầy */}
       <mesh position={[0, COUNTER_H - 0.04, 0]} castShadow receiveShadow>
         <boxGeometry args={[COUNTER_W + 0.1, 0.08, COUNTER_D + 0.1]} />
         <meshStandardMaterial color="#0f766e" roughness={0.35} metalness={0.2} />
       </mesh>
+      {/* Thân quầy */}
       <mesh position={[0, (COUNTER_H - 0.08) / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[COUNTER_W, COUNTER_H - 0.08, COUNTER_D]} />
         <meshStandardMaterial color="#f8fafc" roughness={0.6} />
       </mesh>
+
+      {/* === Khu trưng bày: 3 ngăn chỉ chiếm nửa trái quầy === */}
       {FRONT_SECTIONS.map((sec, sIdx) => {
-        const cx = (sIdx - (COUNTER_SECTIONS - 1) / 2) * SECTION_W;
+        const sectionCx = DISPLAY_LEFT_X + SECTION_W / 2 + sIdx * SECTION_W;
         const drugs = getDrugsByCabinet(sec.id).slice(0, 4);
         return (
-          <group key={sec.id} position={[cx, 0, 0]}>
+          <group key={sec.id} position={[sectionCx, 0, 0]}>
+            {/* Vách ngăn giữa các section */}
             {sIdx < COUNTER_SECTIONS - 1 && (
-              <mesh position={[SECTION_W / 2, COUNTER_H - 0.2, 0]}>
-                <boxGeometry args={[0.02, 0.3, COUNTER_D]} />
+              <mesh position={[SECTION_W / 2, COUNTER_H - 0.18, 0]}>
+                <boxGeometry args={[0.015, 0.28, COUNTER_D - 0.04]} />
                 <meshStandardMaterial color={sec.accent} />
               </mesh>
             )}
-            <mesh position={[0, COUNTER_H + 0.12, -COUNTER_D / 2 - 0.02]}>
-              <boxGeometry args={[SECTION_W - 0.05, 0.16, 0.04]} />
+            {/* Bảng tên ở mép sau quầy (phía dược sĩ) */}
+            <mesh position={[0, COUNTER_H + 0.1, -COUNTER_D / 2 - 0.01]}>
+              <boxGeometry args={[SECTION_W - 0.04, 0.13, 0.03]} />
               <meshStandardMaterial color={sec.accent} />
             </mesh>
             <Text
-              position={[0, COUNTER_H + 0.12, -COUNTER_D / 2]}
-              fontSize={0.06}
+              position={[0, COUNTER_H + 0.1, -COUNTER_D / 2 + 0.005]}
+              fontSize={0.045}
               color="#ffffff"
               anchorX="center"
+              maxWidth={SECTION_W - 0.05}
+              textAlign="center"
             >
               {sec.label}
             </Text>
+            {/* 4 hộp thuốc xếp 2 hàng × 2 cột */}
             {drugs.map((drug, idx) => {
               const slotIdx = picked.indexOf(drug.id);
               const wt = pickSlotPos(slotIdx === -1 ? 0 : slotIdx);
+              const col = idx % 2;
+              const row = Math.floor(idx / 2);
+              const dx = (col - 0.5) * (SECTION_W * 0.45);
+              const dz = (row - 0.5) * (COUNTER_D * 0.42);
               return (
                 <DrugBox
                   key={drug.id}
                   drug={drug}
-                  shelfPos={[
-                    (idx - (drugs.length - 1) / 2) * (SECTION_W / drugs.length),
-                    COUNTER_H + 0.18,
-                    0.02
-                  ]}
+                  shelfPos={[dx, COUNTER_H + 0.15, dz]}
                   picked={picked.includes(drug.id)}
                   label={labels[drug.id]}
-                  targetPos={[wt[0] - 0, wt[1], wt[2] - COUNTER_Z]}
+                  targetPos={[wt[0] - sectionCx, wt[1], wt[2] - COUNTER_Z]}
                   onPick={() =>
                     onPick({
                       id: drug.id,
@@ -391,7 +415,7 @@ function PosComputer({ onClick }: { onClick: () => void }) {
   const [hovered, setHovered] = useState(false);
   return (
     <group
-      position={[1.0, COUNTER_H + 0.05, COUNTER_Z - 0.12]}
+      position={[POS_X, COUNTER_H + 0.05, COUNTER_Z - 0.05]}
       scale={0.72}
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
@@ -510,7 +534,7 @@ function ToolTray({ onClick }: { onClick: () => void }) {
   const [hovered, setHovered] = useState(false);
   return (
     <group
-      position={[-1.2, COUNTER_H + 0.04, COUNTER_Z - 0.05]}
+      position={[TOOLTRAY_X, COUNTER_H + 0.04, COUNTER_Z - 0.05]}
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
       onClick={onClick}
@@ -579,13 +603,17 @@ function ModelCharacter({
   position,
   rotationY = 0,
   scale = 1,
-  label
+  label,
+  clipName,
+  onClips
 }: {
   url: string;
   position: [number, number, number];
   rotationY?: number;
   scale?: number;
   label: string;
+  clipName?: string;
+  onClips?: (clips: string[]) => void;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const { scene, animations } = useGLTF(url) as any;
@@ -593,21 +621,27 @@ function ModelCharacter({
   const { actions } = useAnimations(animations || [], groupRef);
 
   useEffect(() => {
+    if (!onClips) return;
+    onClips((animations || []).map((a: any) => a.name).filter(Boolean));
+  }, [animations, onClips]);
+
+  useEffect(() => {
     if (!actions) return;
     const keys = Object.keys(actions);
     if (!keys.length) return;
-    const idleKey =
+    const pickedKey =
+      (clipName && keys.find((k) => k === clipName)) ||
       keys.find((k) => /idle|stand/i.test(k)) ||
       keys.find((k) => !/walk|run|dance|jump|jog|fall/i.test(k)) ||
       keys[0];
-    const idle = actions[idleKey];
-    if (!idle) return;
-    idle.timeScale = 0.7;
-    idle.reset().fadeIn(0.4).play();
+    const action = actions[pickedKey];
+    if (!action) return;
+    action.timeScale = 0.7;
+    action.reset().fadeIn(0.4).play();
     return () => {
-      idle.fadeOut(0.2).stop();
+      action.fadeOut(0.2).stop();
     };
-  }, [actions]);
+  }, [actions, clipName]);
 
   useEffect(() => {
     cloned.traverse((o: any) => {
@@ -970,7 +1004,13 @@ export default function GppScene({
   onOpenPos,
   onOpenLabelEditor,
   patientLine,
-  pharmacistLine
+  pharmacistLine,
+  pharmacistUrl = "/models/pharmacist.glb",
+  patientUrl = "/models/patient.glb",
+  pharmacistClip,
+  patientClip,
+  onPharmacistClips,
+  onPatientClips
 }: Props) {
   const labelCount = Object.keys(labels).length;
 
@@ -1073,21 +1113,31 @@ export default function GppScene({
         {/* === Khu tư vấn riêng: 1 bàn tròn + 2 ghế đối diện === */}
         <ConsultDesk position={[-3.4, 0, -0.4]} />
 
-        {/* === Dược sĩ + Bệnh nhân: model GLB === */}
-        <ModelCharacter
-          url="/models/pharmacist.glb"
-          position={[0, 0, COUNTER_Z - 0.55]}
-          rotationY={0}
-          scale={1.0}
-          label="DƯỢC SĨ (SV)"
-        />
-        <ModelCharacter
-          url="/models/patient.glb"
-          position={[0.2, 0, COUNTER_Z + 1.1]}
-          rotationY={Math.PI + 0.35}
-          scale={1.0}
-          label="BỆNH NHÂN"
-        />
+        {/* === Dược sĩ + Bệnh nhân: model GLB (URL & pose có thể đổi runtime) === */}
+        <Suspense fallback={null}>
+          <ModelCharacter
+            key={`pharm-${pharmacistUrl}`}
+            url={pharmacistUrl}
+            position={[0, 0, COUNTER_Z - 0.55]}
+            rotationY={0}
+            scale={1.0}
+            label="DƯỢC SĨ (SV)"
+            clipName={pharmacistClip}
+            onClips={onPharmacistClips}
+          />
+        </Suspense>
+        <Suspense fallback={null}>
+          <ModelCharacter
+            key={`pat-${patientUrl}`}
+            url={patientUrl}
+            position={[0.2, 0, COUNTER_Z + 1.1]}
+            rotationY={Math.PI + 0.35}
+            scale={1.0}
+            label="BỆNH NHÂN"
+            clipName={patientClip}
+            onClips={onPatientClips}
+          />
+        </Suspense>
 
         {/* === 2 hàng ghế chờ — quay vào trong === */}
         {/* Hàng trái sát tường trái, lưng dựa vào tường (-x), mặt ghế quay sang phải (+x) → rotationY = +π/2 */}
