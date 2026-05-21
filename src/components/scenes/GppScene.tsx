@@ -818,8 +818,7 @@ function ConsultDesk({ position }: { position: [number, number, number] }) {
         <cylinderGeometry args={[0.22, 0.22, 0.04, 24]} />
         <meshStandardMaterial color="#92400e" />
       </mesh>
-      {/* Ghế đối diện nhau: 1 quay mặt +z, 1 quay -z */}
-      <ConsultChair position={[0, 0, -0.8]} rotationY={0} />
+      {/* Chỉ giữ 1 ghế phía TỦ LẠNH (z dương, quay mặt vào bàn tròn) */}
       <ConsultChair position={[0, 0, 0.8]} rotationY={Math.PI} />
     </group>
   );
