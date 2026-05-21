@@ -212,41 +212,39 @@ function CameraEye({
       >
         {/* viền tròn ngoài (sáng khi hover) */}
         <mesh>
-          <ringGeometry args={[0.075, 0.095, 32]} />
-          <meshBasicMaterial color={hovered ? "#0ea5e9" : "#38bdf8"} transparent opacity={visibleAlways || hovered ? 0.95 : 0.7} />
+          <ringGeometry args={[0.105, 0.135, 36]} />
+          <meshBasicMaterial color={hovered ? "#0ea5e9" : "#38bdf8"} transparent opacity={visibleAlways || hovered ? 1 : 0.85} />
         </mesh>
         {/* viền nền trắng */}
         <mesh position={[0, 0, -0.001]}>
-          <circleGeometry args={[0.095, 32]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={visibleAlways || hovered ? 0.95 : 0.6} />
+          <circleGeometry args={[0.135, 36]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={visibleAlways || hovered ? 1 : 0.78} />
         </mesh>
         {/* tròng mắt */}
         <mesh position={[0, 0, 0.001]}>
-          <circleGeometry args={[0.045, 32]} />
+          <circleGeometry args={[0.065, 32]} />
           <meshBasicMaterial color="#0c4a6e" />
         </mesh>
         {/* con ngươi */}
         <mesh position={[0, 0, 0.002]}>
-          <circleGeometry args={[0.018, 24]} />
+          <circleGeometry args={[0.026, 24]} />
           <meshBasicMaterial color="#0f172a" />
         </mesh>
         {/* highlight */}
-        <mesh position={[0.013, 0.013, 0.003]}>
-          <circleGeometry args={[0.009, 16]} />
+        <mesh position={[0.019, 0.019, 0.003]}>
+          <circleGeometry args={[0.012, 16]} />
           <meshBasicMaterial color="#ffffff" />
         </mesh>
-        {/* nhãn dưới */}
-        {hovered && (
-          <group position={[0, -0.16, 0.001]}>
-            <mesh>
-              <planeGeometry args={[Math.max(0.26, label.length * 0.034), 0.07]} />
-              <meshBasicMaterial color="#0f172a" transparent opacity={0.88} />
-            </mesh>
-            <Text position={[0, 0, 0.002]} fontSize={0.036} color="#f8fafc" anchorX="center" anchorY="middle">
-              {`🔍 ${label}`}
-            </Text>
-          </group>
-        )}
+        {/* nhãn dưới (luôn hiện để user biết mắt nào tương ứng đối tượng nào) */}
+        <group position={[0, -0.215, 0.001]}>
+          <mesh>
+            <planeGeometry args={[Math.max(0.34, label.length * 0.044), 0.085]} />
+            <meshBasicMaterial color="#0f172a" transparent opacity={hovered ? 0.95 : 0.78} />
+          </mesh>
+          <Text position={[0, 0, 0.002]} fontSize={0.045} color="#f8fafc" anchorX="center" anchorY="middle">
+            {label}
+          </Text>
+        </group>
       </group>
     </Billboard>
   );
@@ -754,10 +752,12 @@ function FrontCounter({
         <meshStandardMaterial color="#f8fafc" roughness={0.6} />
       </mesh>
 
-      {/* === Khu trưng bày: 3 ngăn chỉ chiếm nửa trái quầy === */}
+      {/* === Khu trưng bày: 3 ngăn chỉ chiếm nửa trái quầy.
+              Mỗi ngăn chỉ trưng 50% thuốc của nhóm (đại diện) để mặt bàn thoáng. === */}
       {FRONT_SECTIONS.map((sec, sIdx) => {
         const sectionCx = DISPLAY_LEFT_X + SECTION_W / 2 + sIdx * SECTION_W;
-        const drugs = getDrugsByCabinet(sec.id);
+        const allDrugs = getDrugsByCabinet(sec.id);
+        const drugs = allDrugs.slice(0, Math.ceil(allDrugs.length / 2));
         return (
           <group key={sec.id} position={[sectionCx, 0, 0]}>
             {/* Vách ngăn giữa các section */}
@@ -1979,47 +1979,47 @@ export default function GppScene({
             Hàng bên phải nằm cạnh dãy tủ thuốc nên bỏ theo yêu cầu. */}
         <WaitingChair position={[-ROOM_W / 2 + 0.4, 0, 2.8]} rotationY={Math.PI / 2} />
 
-        {/* === 2 cây cảnh — đặt phía SAU ghế chờ (xa quầy), không cản đường vào === */}
-        <AnimatedPlant position={[-ROOM_W / 2 + 0.4, 0, 3.85]} scale={1.4} phase={0} />
-        <AnimatedPlant position={[ROOM_W / 2 - 0.4, 0, 3.85]} scale={1.4} phase={1.2} />
+        {/* === 2 cây cảnh — đặt phía SAU ghế chờ, cách ghế ~0.55m, scale 1.26 (giảm 10%) === */}
+        <AnimatedPlant position={[-ROOM_W / 2 + 0.4, 0, 4.20]} scale={1.26} phase={0} />
+        <AnimatedPlant position={[ROOM_W / 2 - 0.4, 0, 4.20]} scale={1.26} phase={1.2} />
 
         {/* === Bubble thoại: tạm ẩn cùng nhân vật === */}
 
         <ContactShadows position={[0, 0.001, 0]} opacity={0.45} scale={20} blur={2.5} far={4} />
 
-        {/* === Camera "eyes" — đặt sát phía trên mỗi đối tượng === */}
-        {/* Tủ lạnh */}
+        {/* === Camera "eyes" — đặt LÊN ĐỈNH từng đối tượng (cao hơn nóc 15-25 cm) === */}
+        {/* Tủ lạnh — nóc tủ y=1.70 */}
         <CameraEye
-          position={[-ROOM_W / 2 + 0.36, 1.85, COUNTER_Z + 0.1]}
-          label="Xem tủ lạnh"
+          position={[-ROOM_W / 2 + 0.36, 1.95, COUNTER_Z + 0.1]}
+          label="Tủ lạnh"
           active={cameraPreset === "fridge"}
           onActivate={() => setCameraPreset("fridge")}
         />
-        {/* Quầy giao dịch */}
+        {/* Quầy giao dịch — mặt quầy y=1.0, POS cao ~1.5, đặt eye cao hơn POS */}
         <CameraEye
-          position={[0, 1.45, COUNTER_Z]}
-          label="Xem quầy"
+          position={[0, 1.85, COUNTER_Z + 0.15]}
+          label="Quầy giao dịch"
           active={cameraPreset === "counter"}
           onActivate={() => setCameraPreset("counter")}
         />
-        {/* Dãy tủ thuốc phía sau */}
+        {/* Dãy tủ thuốc phía sau — nóc label y≈2.47 */}
         <CameraEye
-          position={[0, 2.75, BACK_Z + 0.6]}
-          label="Xem dãy tủ sau"
+          position={[0, 2.72, BACK_Z + 0.6]}
+          label="Dãy tủ sau"
           active={cameraPreset === "back_cabinets"}
           onActivate={() => setCameraPreset("back_cabinets")}
         />
-        {/* Dãy tủ thuốc bên phải */}
+        {/* Dãy tủ thuốc bên phải — nóc label y≈2.47 */}
         <CameraEye
-          position={[ROOM_W / 2 - 0.7, 2.55, 0.6]}
-          label="Xem tủ bên"
+          position={[ROOM_W / 2 - 0.65, 2.72, 0.6]}
+          label="Tủ bên"
           active={cameraPreset === "side_cabinets"}
           onActivate={() => setCameraPreset("side_cabinets")}
         />
-        {/* Bàn tư vấn */}
+        {/* Bàn tư vấn — mặt bàn tròn y=0.76 */}
         <CameraEye
-          position={[-3.4, 1.35, -0.4]}
-          label="Xem bàn tư vấn"
+          position={[-3.4, 1.45, -0.4]}
+          label="Bàn tư vấn"
           active={cameraPreset === "consult"}
           onActivate={() => setCameraPreset("consult")}
         />
