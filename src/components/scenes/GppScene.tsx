@@ -720,6 +720,78 @@ function ConsultChair({
   );
 }
 
+/* ============= Cánh tủ lạnh xoay quanh bản lề phải, click để mở/đóng ============= */
+function FridgeDoor({
+  centerY,
+  width,
+  height,
+  isOpen,
+  onToggle,
+  handleHeight,
+  labelTop
+}: {
+  centerY: number;
+  width: number;
+  height: number;
+  isOpen: boolean;
+  onToggle: () => void;
+  handleHeight: number;
+  labelTop?: boolean;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const hingeX = width / 2; // bản lề ở mép phải
+  useFrame(() => {
+    const g = groupRef.current;
+    if (!g) return;
+    const target = isOpen ? -Math.PI / 2.2 : 0;
+    g.rotation.y += (target - g.rotation.y) * 0.18;
+  });
+  return (
+    <group ref={groupRef} position={[hingeX, centerY, 0.36]}>
+      {/* cánh cửa */}
+      <mesh
+        position={[-width / 2, 0, 0]}
+        castShadow
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+      >
+        <boxGeometry args={[width, height, 0.025]} />
+        <meshStandardMaterial color="#e2e8f0" roughness={0.45} metalness={0.1} />
+      </mesh>
+      {/* tay nắm — ở mép trái cánh (đối diện bản lề) */}
+      <mesh
+        position={[-width + 0.05, 0, 0.018]}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+      >
+        <boxGeometry args={[0.04, handleHeight, 0.02]} />
+        <meshStandardMaterial color="#94a3b8" metalness={0.6} roughness={0.35} />
+      </mesh>
+      {/* tem nhãn (chỉ cánh trên) */}
+      {labelTop && (
+        <>
+          <mesh position={[-width / 2, height / 2 - 0.08, 0.018]}>
+            <planeGeometry args={[0.36, 0.12]} />
+            <meshStandardMaterial color="#0f766e" />
+          </mesh>
+          <Text
+            position={[-width / 2, height / 2 - 0.08, 0.02]}
+            fontSize={0.04}
+            color="#ecfeff"
+            anchorX="center"
+          >
+            TỦ LẠNH 2–8°C
+          </Text>
+        </>
+      )}
+    </group>
+  );
+}
+
 /* ============= Tủ lạnh cửa kín (closed-door, không xuyên thấu) ============= */
 function ClosedFridge({
   position,
@@ -728,6 +800,13 @@ function ClosedFridge({
   position: [number, number, number];
   rotationY?: number;
 }) {
+  const [topOpen, setTopOpen] = useState(false);
+  const [bottomOpen, setBottomOpen] = useState(false);
+  // Thân tủ spans Y ∈ [0, 1.7]; chia: dưới [0.05, 1.05] (h=1.0), viền 1.05, trên [1.05, 1.65] (h=0.6)
+  const BOTTOM_H = 1.0;
+  const BOTTOM_Y = 0.05 + BOTTOM_H / 2; // 0.55
+  const TOP_H = 0.6;
+  const TOP_Y = 1.05 + TOP_H / 2; // 1.35
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
       {/* thân tủ */}
@@ -735,41 +814,36 @@ function ClosedFridge({
         <boxGeometry args={[0.78, 1.7, 0.7]} />
         <meshStandardMaterial color="#f8fafc" roughness={0.4} metalness={0.05} />
       </mesh>
-      {/* viền dọc giữa 2 cửa */}
-      <mesh position={[0, 1.05, 0.36]}>
-        <boxGeometry args={[0.74, 0.02, 0.005]} />
+      {/* lòng tủ tối (để khi cửa mở thấy bên trong) */}
+      <mesh position={[0, 0.85, 0.355]} receiveShadow>
+        <boxGeometry args={[0.74, 1.6, 0.005]} />
+        <meshStandardMaterial color="#1e293b" roughness={0.9} />
+      </mesh>
+      {/* viền ngang giữa 2 cửa */}
+      <mesh position={[0, 1.05, 0.355]}>
+        <boxGeometry args={[0.74, 0.02, 0.01]} />
         <meshStandardMaterial color="#cbd5e1" />
       </mesh>
-      {/* cửa trên */}
-      <mesh position={[0, 1.5, 0.36]} castShadow>
-        <boxGeometry args={[0.74, 0.7, 0.025]} />
-        <meshStandardMaterial color="#e2e8f0" roughness={0.45} metalness={0.1} />
-      </mesh>
-      {/* cửa dưới */}
-      <mesh position={[0, 0.65, 0.36]} castShadow>
-        <boxGeometry args={[0.74, 0.95, 0.025]} />
-        <meshStandardMaterial color="#e2e8f0" roughness={0.45} metalness={0.1} />
-      </mesh>
-      {/* tay nắm trên */}
-      <mesh position={[-0.32, 1.5, 0.378]}>
-        <boxGeometry args={[0.04, 0.32, 0.02]} />
-        <meshStandardMaterial color="#94a3b8" metalness={0.6} roughness={0.35} />
-      </mesh>
-      {/* tay nắm dưới */}
-      <mesh position={[-0.32, 0.65, 0.378]}>
-        <boxGeometry args={[0.04, 0.45, 0.02]} />
-        <meshStandardMaterial color="#94a3b8" metalness={0.6} roughness={0.35} />
-      </mesh>
-      {/* tem nhãn dán */}
-      <mesh position={[0, 1.62, 0.38]}>
-        <planeGeometry args={[0.36, 0.12]} />
-        <meshStandardMaterial color="#0f766e" />
-      </mesh>
-      <Text position={[0, 1.62, 0.382]} fontSize={0.04} color="#ecfeff" anchorX="center">
-        TỦ LẠNH 2–8°C
-      </Text>
+      {/* Cửa trên + cửa dưới — có thể click mở/đóng */}
+      <FridgeDoor
+        centerY={TOP_Y}
+        width={0.74}
+        height={TOP_H}
+        isOpen={topOpen}
+        onToggle={() => setTopOpen((o) => !o)}
+        handleHeight={0.28}
+        labelTop
+      />
+      <FridgeDoor
+        centerY={BOTTOM_Y}
+        width={0.74}
+        height={BOTTOM_H}
+        isOpen={bottomOpen}
+        onToggle={() => setBottomOpen((o) => !o)}
+        handleHeight={0.45}
+      />
       {/* đèn báo */}
-      <mesh position={[0.3, 1.78, 0.38]}>
+      <mesh position={[0.3, 1.66, 0.36]}>
         <circleGeometry args={[0.014, 16]} />
         <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={0.7} />
       </mesh>
@@ -1103,29 +1177,7 @@ export default function GppScene({
         <AnimatedPlant position={[-ROOM_W / 2 + 0.4, 0, 1.65]} scale={1.4} phase={0} />
         <AnimatedPlant position={[ROOM_W / 2 - 0.4, 0, 1.65]} scale={1.4} phase={1.2} />
 
-        {/* === Bubble thoại Billboard === */}
-        {patientLine && (
-          <Billboard position={[0.95, 1.55, COUNTER_Z + 1.1]}>
-            <mesh>
-              <planeGeometry args={[0.95, 0.28]} />
-              <meshStandardMaterial color="#ffffff" />
-            </mesh>
-            <Text position={[0, 0, 0.01]} fontSize={0.038} color="#0f172a" anchorX="center" maxWidth={0.9}>
-              {patientLine}
-            </Text>
-          </Billboard>
-        )}
-        {pharmacistLine && (
-          <Billboard position={[-0.95, 1.65, COUNTER_Z - 0.55]}>
-            <mesh>
-              <planeGeometry args={[0.95, 0.28]} />
-              <meshStandardMaterial color="#dcfce7" />
-            </mesh>
-            <Text position={[0, 0, 0.01]} fontSize={0.038} color="#065f46" anchorX="center" maxWidth={0.9}>
-              {pharmacistLine}
-            </Text>
-          </Billboard>
-        )}
+        {/* === Bubble thoại: tạm ẩn cùng nhân vật === */}
 
         <ContactShadows position={[0, 0.001, 0]} opacity={0.45} scale={20} blur={2.5} far={4} />
 
