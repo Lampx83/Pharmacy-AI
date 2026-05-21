@@ -103,6 +103,98 @@ const POS_X = 1.45;
 
 const SHELVES_PER_CAB = 5;
 
+/* ============= Hộp thuốc — kích thước & nhãn động ============= */
+type BoxVariant = "banner" | "panel" | "stripe" | "twotone" | "classic" | "flag";
+type BoxStyle = { w: number; h: number; d: number; variant: BoxVariant; copies: number };
+
+function hashSku(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = (h * 16777619) >>> 0;
+  }
+  return h;
+}
+
+const TABLET_DIMS: ReadonlyArray<{ w: number; h: number; d: number }> = [
+  { w: 0.090, h: 0.135, d: 0.050 },
+  { w: 0.100, h: 0.150, d: 0.055 },
+  { w: 0.110, h: 0.140, d: 0.055 },
+  { w: 0.105, h: 0.165, d: 0.060 },
+  { w: 0.095, h: 0.155, d: 0.050 },
+  { w: 0.115, h: 0.130, d: 0.060 },
+  { w: 0.085, h: 0.145, d: 0.050 },
+];
+const SYRUP_DIMS = [
+  { w: 0.085, h: 0.205, d: 0.072 },
+  { w: 0.080, h: 0.220, d: 0.068 },
+  { w: 0.090, h: 0.185, d: 0.075 }
+];
+const SPRAY_DIMS = [
+  { w: 0.072, h: 0.225, d: 0.058 },
+  { w: 0.065, h: 0.205, d: 0.055 },
+  { w: 0.078, h: 0.215, d: 0.062 }
+];
+const DROP_DIMS = [
+  { w: 0.055, h: 0.110, d: 0.040 },
+  { w: 0.060, h: 0.120, d: 0.045 },
+  { w: 0.050, h: 0.100, d: 0.038 }
+];
+const BOTTLE_DIMS = [
+  { w: 0.078, h: 0.160, d: 0.058 },
+  { w: 0.083, h: 0.150, d: 0.062 },
+  { w: 0.072, h: 0.175, d: 0.055 }
+];
+const TUBE_DIMS = [
+  { w: 0.088, h: 0.115, d: 0.048 },
+  { w: 0.078, h: 0.130, d: 0.045 },
+  { w: 0.082, h: 0.105, d: 0.050 }
+];
+const AMPOULE_DIMS = [
+  { w: 0.065, h: 0.125, d: 0.045 },
+  { w: 0.070, h: 0.130, d: 0.045 }
+];
+const SACHET_DIMS = [
+  { w: 0.108, h: 0.092, d: 0.042 },
+  { w: 0.115, h: 0.105, d: 0.048 }
+];
+const DEVICE_DIMS = [
+  { w: 0.085, h: 0.160, d: 0.055 },
+  { w: 0.090, h: 0.150, d: 0.060 }
+];
+
+function getBoxStyle(drug: DrugSpec): BoxStyle {
+  const h = hashSku(drug.sku);
+  const f = drug.form || "";
+  let dim: { w: number; h: number; d: number };
+  if (/siro|hỗn dịch|nước uống/i.test(f)) dim = SYRUP_DIMS[h % SYRUP_DIMS.length];
+  else if (/bình xịt|xịt mũi|dung dịch xịt/i.test(f)) dim = SPRAY_DIMS[h % SPRAY_DIMS.length];
+  else if (/nhỏ mắt|nhỏ giọt|ống nhỏ/i.test(f) || /^dung dịch nhỏ$/i.test(f)) dim = DROP_DIMS[h % DROP_DIMS.length];
+  else if (/^lọ$|dung dịch$/i.test(f)) dim = BOTTLE_DIMS[h % BOTTLE_DIMS.length];
+  else if (/kem bôi|gel bôi|cao xoa|mỡ/i.test(f)) dim = TUBE_DIMS[h % TUBE_DIMS.length];
+  else if (/ống khí dung|ống uống|ống/i.test(f)) dim = AMPOULE_DIMS[h % AMPOULE_DIMS.length];
+  else if (/gói|bột/i.test(f)) dim = SACHET_DIMS[h % SACHET_DIMS.length];
+  else if (/miếng dán/i.test(f)) dim = { w: 0.115, h: 0.085, d: 0.035 };
+  else if (/bút|que thử|thiết bị/i.test(f)) dim = DEVICE_DIMS[h % DEVICE_DIMS.length];
+  else dim = TABLET_DIMS[h % TABLET_DIMS.length];
+  const VARIANTS: BoxVariant[] = ["banner", "panel", "stripe", "twotone", "classic", "flag"];
+  const variant = VARIANTS[h % VARIANTS.length];
+  const copies = (h & 3) === 0 ? 3 : 2;
+  return { ...dim, variant, copies };
+}
+
+/* mix màu rất nhẹ để variant "twotone" có lớp tương phản */
+function lightenHex(hex: string, amount = 0.18): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 0xff;
+  const g = (n >> 8) & 0xff;
+  const b = n & 0xff;
+  const mix = (c: number) => Math.round(c + (255 - c) * amount);
+  return `#${[mix(r), mix(g), mix(b)].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
 /* ============= Hộp thuốc clickable ============= */
 function DrugBox({
   drug,
@@ -111,7 +203,9 @@ function DrugBox({
   label,
   targetPos,
   onPick,
-  scale = 1
+  scale = 1,
+  style,
+  interactive = true
 }: {
   drug: DrugSpec;
   shelfPos: [number, number, number];
@@ -120,6 +214,8 @@ function DrugBox({
   targetPos: [number, number, number];
   onPick: () => void;
   scale?: number;
+  style: BoxStyle;
+  interactive?: boolean;
 }) {
   const ref = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
@@ -131,58 +227,168 @@ function DrugBox({
     g.position.y += (dst[1] - g.position.y) * 0.15;
     g.position.z += (dst[2] - g.position.z) * 0.15;
   });
+
+  const { w, h, d, variant } = style;
+  const faceZ = d / 2 + 0.001;
+  const nameSize   = Math.min(0.022, w * 0.20);
+  const strSize    = Math.min(0.018, w * 0.16);
+  const skuSize    = Math.min(0.014, w * 0.13);
+  const accent = drug.groupAccent;
+  const accentLight = lightenHex(accent, 0.35);
+  const bodyColor = hovered ? "#fef9c3" : drug.bodyColor;
+  const textDark = "#0f172a";
+
+  // Build face decoration depending on variant.
+  const face = (() => {
+    switch (variant) {
+      case "banner": {
+        // dải màu ngang trên đỉnh
+        return (
+          <mesh position={[0, h / 2 - h * 0.12, faceZ]}>
+            <planeGeometry args={[w, h * 0.22]} />
+            <meshStandardMaterial color={accent} />
+          </mesh>
+        );
+      }
+      case "panel": {
+        // toàn mặt là accent, ô trắng nhỏ giữa
+        return (
+          <>
+            <mesh position={[0, 0, faceZ - 0.0005]}>
+              <planeGeometry args={[w * 0.98, h * 0.96]} />
+              <meshStandardMaterial color={accent} />
+            </mesh>
+            <mesh position={[0, -h * 0.05, faceZ]}>
+              <planeGeometry args={[w * 0.82, h * 0.55]} />
+              <meshStandardMaterial color="#ffffff" />
+            </mesh>
+          </>
+        );
+      }
+      case "stripe": {
+        // 3 dải ngang xen kẽ
+        return (
+          <>
+            <mesh position={[0, h * 0.32, faceZ]}>
+              <planeGeometry args={[w, h * 0.10]} />
+              <meshStandardMaterial color={accent} />
+            </mesh>
+            <mesh position={[0, 0, faceZ]}>
+              <planeGeometry args={[w, h * 0.10]} />
+              <meshStandardMaterial color={accentLight} />
+            </mesh>
+            <mesh position={[0, -h * 0.32, faceZ]}>
+              <planeGeometry args={[w, h * 0.10]} />
+              <meshStandardMaterial color={accent} />
+            </mesh>
+          </>
+        );
+      }
+      case "twotone": {
+        // chia đôi: trên = accent, dưới = bodyColor
+        return (
+          <mesh position={[0, h * 0.22, faceZ]}>
+            <planeGeometry args={[w, h * 0.50]} />
+            <meshStandardMaterial color={accent} />
+          </mesh>
+        );
+      }
+      case "classic": {
+        // dải trên + dải dưới
+        return (
+          <>
+            <mesh position={[0, h * 0.36, faceZ]}>
+              <planeGeometry args={[w, h * 0.16]} />
+              <meshStandardMaterial color={accent} />
+            </mesh>
+            <mesh position={[0, -h * 0.40, faceZ]}>
+              <planeGeometry args={[w, h * 0.10]} />
+              <meshStandardMaterial color={accent} />
+            </mesh>
+          </>
+        );
+      }
+      case "flag": {
+        // góc trên trái có tam giác/chữ nhật nhỏ
+        return (
+          <>
+            <mesh position={[-w * 0.30, h * 0.34, faceZ]}>
+              <planeGeometry args={[w * 0.34, h * 0.18]} />
+              <meshStandardMaterial color={accent} />
+            </mesh>
+            <mesh position={[0, -h * 0.36, faceZ]}>
+              <planeGeometry args={[w * 0.85, 0.004]} />
+              <meshStandardMaterial color={accent} />
+            </mesh>
+          </>
+        );
+      }
+    }
+  })();
+
+  // vị trí chữ phù hợp variant (panel có ô trắng giữa)
+  const nameY  = variant === "panel" ? -h * 0.02 : h * 0.13;
+  const strY   = variant === "panel" ? -h * 0.14 : -h * 0.02;
+  const skuY   = variant === "panel" ? -h * 0.25 : -h * 0.18;
+  const nameColor = variant === "panel" ? textDark : textDark;
+
   return (
     <group
       ref={ref}
       position={shelfPos}
       scale={scale}
-      onPointerOver={(e) => {
-        e.stopPropagation();
-        setHovered(true);
-      }}
-      onPointerOut={() => setHovered(false)}
-      onClick={(e) => {
-        e.stopPropagation();
-        onPick();
-      }}
+      onPointerOver={interactive ? (e) => { e.stopPropagation(); setHovered(true); } : undefined}
+      onPointerOut={interactive ? () => setHovered(false) : undefined}
+      onClick={interactive ? (e) => { e.stopPropagation(); onPick(); } : undefined}
+      raycast={interactive ? undefined : (NULL_RAYCAST as unknown as never)}
     >
-      <RoundedBox args={[0.17, 0.24, 0.11]} radius={0.01}>
-        <meshStandardMaterial
-          color={hovered ? "#fef9c3" : drug.bodyColor}
-          roughness={0.55}
-        />
+      <RoundedBox args={[w, h, d]} radius={Math.min(0.008, w * 0.07)}>
+        <meshStandardMaterial color={bodyColor} roughness={0.6} />
       </RoundedBox>
-      <mesh position={[0, 0.1, 0.058]}>
-        <planeGeometry args={[0.17, 0.038]} />
-        <meshStandardMaterial color={drug.groupAccent} />
-      </mesh>
+      {face}
       <Text
-        position={[0, 0.03, 0.06]}
-        fontSize={0.03}
-        color="#0f172a"
+        position={[0, nameY, faceZ + 0.001]}
+        fontSize={nameSize}
+        color={nameColor}
         anchorX="center"
-        maxWidth={0.16}
+        maxWidth={w * 0.92}
       >
-        {drug.name}
+        {drug.brand || drug.name}
       </Text>
-      <Text position={[0, -0.018, 0.06]} fontSize={0.022} color="#334155" anchorX="center">
+      <Text
+        position={[0, strY, faceZ + 0.001]}
+        fontSize={strSize}
+        color="#334155"
+        anchorX="center"
+        maxWidth={w * 0.92}
+      >
         {drug.strength}
       </Text>
-      <Text position={[0, -0.058, 0.06]} fontSize={0.018} color="#475569" anchorX="center">
+      <Text
+        position={[0, skuY, faceZ + 0.001]}
+        fontSize={skuSize}
+        color="#475569"
+        anchorX="center"
+      >
         {drug.sku}
       </Text>
       {drug.isRx && (
-        <Text position={[-0.06, 0.105, 0.061]} fontSize={0.02} color="#ffffff" anchorX="center">
+        <Text
+          position={[-w * 0.35, h * 0.42, faceZ + 0.002]}
+          fontSize={Math.min(0.016, w * 0.14)}
+          color="#dc2626"
+          anchorX="center"
+        >
           Rx
         </Text>
       )}
       {label && (
-        <group position={[0, -0.14, 0.06]}>
+        <group position={[0, -h / 2 - 0.04, faceZ]}>
           <mesh>
-            <planeGeometry args={[0.17, 0.06]} />
+            <planeGeometry args={[w, 0.04]} />
             <meshStandardMaterial color="#fde68a" />
           </mesh>
-          <Text position={[0, 0, 0.001]} fontSize={0.015} color="#78350f" anchorX="center">
+          <Text position={[0, 0, 0.001]} fontSize={Math.min(0.012, w * 0.10)} color="#78350f" anchorX="center">
             {label.morning > 0 ? `S${label.morning} ` : ""}
             {label.noon > 0 ? `T${label.noon} ` : ""}
             {label.afternoon > 0 ? `C${label.afternoon} ` : ""}
@@ -192,6 +398,51 @@ function DrugBox({
       )}
     </group>
   );
+}
+
+/* Stack hộp giống nhau xếp từ ngoài vào trong cùng SKU */
+function DrugStack({
+  drug,
+  shelfPos,
+  picked,
+  label,
+  targetPos,
+  onPick,
+  scale = 1,
+  style
+}: {
+  drug: DrugSpec;
+  shelfPos: [number, number, number];
+  picked: boolean;
+  label?: HdsdLabel;
+  targetPos: [number, number, number];
+  onPick: () => void;
+  scale?: number;
+  style: BoxStyle;
+}) {
+  const n = style.copies;
+  const stepZ = style.d + 0.005;
+  // primary copy = phía ngoài (gần khán giả) — index 0 thì z lớn nhất (đẩy ra trước)
+  const items: JSX.Element[] = [];
+  for (let i = 0; i < n; i++) {
+    const zOff = -i * stepZ * scale;
+    const pos: [number, number, number] = [shelfPos[0], shelfPos[1], shelfPos[2] + zOff];
+    items.push(
+      <DrugBox
+        key={`${drug.id}-${i}`}
+        drug={drug}
+        shelfPos={pos}
+        picked={i === 0 ? picked : false}
+        label={i === 0 ? label : undefined}
+        targetPos={targetPos}
+        onPick={onPick}
+        scale={scale}
+        style={style}
+        interactive={i === 0}
+      />
+    );
+  }
+  return <>{items}</>;
 }
 
 /* ============= Tủ thuốc lớn ============= */
@@ -267,52 +518,67 @@ function Cabinet({
         </Text>
       </group>
 
-      {drugs.map((drug, idx, arr) => {
-        // Layout động: chia đều thuốc qua 5 tầng; nếu 1 tầng > 4 hộp thì xếp 2 hàng sâu
-        const total = arr.length;
-        const drugsPerShelf = Math.max(1, Math.ceil(total / SHELVES_PER_CAB));
-        const rowsPerShelf = drugsPerShelf > 4 ? 2 : 1;
-        const colsPerShelf = Math.ceil(drugsPerShelf / rowsPerShelf);
-        const colSpacing = (W - 0.18) / Math.max(colsPerShelf, 1);
-        const shelf = idx % SHELVES_PER_CAB;
-        const onShelfIdx = Math.floor(idx / SHELVES_PER_CAB);
-        const depthRow = onShelfIdx % rowsPerShelf; // 0 = trước, 1 = sau
-        const col = Math.floor(onShelfIdx / rowsPerShelf);
-        // shelf=0 sits on the cabinet floor (top y = 0.08); shelf>=1 sits on the i=shelf-1 plank
-        const shelfTopY = shelf === 0 ? 0.08 : 0.11 + shelf * SHELF_H;
-        const y = shelfTopY + 0.12; // 0.12 = half of DrugBox height (0.24)
-        const x = (col - (colsPerShelf - 1) / 2) * colSpacing;
-        const zFront = -D / 2 + 0.22;
-        const zBack  = -D / 2 + 0.40;
-        const z = rowsPerShelf > 1 ? (depthRow === 0 ? zFront : zBack) : zFront;
-        const isPicked = picked.includes(drug.id);
-        const wt = pickSlotPos(picked.indexOf(drug.id) === -1 ? 0 : picked.indexOf(drug.id));
-        // world → local cho group rotated by rotationY quanh trục Y
-        const dx = wt[0] - origin[0];
-        const dz = wt[2] - origin[2];
-        const localTarget: [number, number, number] = [
-          dx * Math.cos(rotationY) - dz * Math.sin(rotationY),
-          wt[1] - origin[1],
-          dx * Math.sin(rotationY) + dz * Math.cos(rotationY)
-        ];
-        return (
-          <DrugBox
-            key={drug.id}
-            drug={drug}
-            shelfPos={[x, y, z]}
-            picked={isPicked}
-            label={labels[drug.id]}
-            targetPos={localTarget}
-            onPick={() =>
-              onPick({
-                id: drug.id,
-                isAntibiotic: drug.isAntibiotic,
-                isHazardPregnancy: drug.isHazardPregnancy
-              })
-            }
-          />
-        );
-      })}
+      {(() => {
+        /* Chia đều thuốc qua 5 tầng theo modulo, sau đó pack từng tầng từ trái sang phải
+           theo bề rộng thực của từng hộp (mỗi SKU stack 2-3 hộp cùng lúc) */
+        const shelves: DrugSpec[][] = Array.from({ length: SHELVES_PER_CAB }, () => []);
+        drugs.forEach((d, i) => shelves[i % SHELVES_PER_CAB].push(d));
+        const usableW = W - 0.16; // trừ 2 vách bên (0.08 mỗi vách)
+        const zFront = -D / 2 + 0.20;
+        const out: JSX.Element[] = [];
+        shelves.forEach((shelfDrugs, shelfIdx) => {
+          if (shelfDrugs.length === 0) return;
+          const styles = shelfDrugs.map(getBoxStyle);
+          // Nếu tổng width + gap > usableW thì co lại đồng đều
+          const gap = 0.012;
+          const rawTotal = styles.reduce((s, st) => s + st.w, 0) + gap * (styles.length - 1);
+          const fit = rawTotal > usableW ? usableW / rawTotal : 1;
+          // shelf y
+          const shelfTopY = shelfIdx === 0 ? 0.08 : 0.11 + shelfIdx * SHELF_H;
+          // x cursor (centered)
+          const totalW = rawTotal * fit;
+          let cursor = -totalW / 2;
+          shelfDrugs.forEach((drug, j) => {
+            const st = styles[j];
+            const bw = st.w * fit;
+            const bh = st.h * fit;
+            const cx = cursor + bw / 2;
+            const cy = shelfTopY + bh / 2 + 0.002;
+            const cz = zFront - st.d * fit * 0.5; // gốc của stack: hộp đầu (i=0) hơi đẩy về trước
+            cursor += bw + gap * fit;
+            const isPicked = picked.includes(drug.id);
+            const slotIdx = picked.indexOf(drug.id);
+            const wt = pickSlotPos(slotIdx === -1 ? 0 : slotIdx);
+            const dx = wt[0] - origin[0];
+            const dz = wt[2] - origin[2];
+            const localTarget: [number, number, number] = [
+              dx * Math.cos(rotationY) - dz * Math.sin(rotationY),
+              wt[1] - origin[1],
+              dx * Math.sin(rotationY) + dz * Math.cos(rotationY)
+            ];
+            out.push(
+              <DrugStack
+                key={drug.id}
+                drug={drug}
+                shelfPos={[cx, cy, cz]}
+                picked={isPicked}
+                label={labels[drug.id]}
+                targetPos={localTarget}
+                onPick={() =>
+                  onPick({
+                    id: drug.id,
+                    isAntibiotic: drug.isAntibiotic,
+                    isHazardPregnancy: drug.isHazardPregnancy
+                  })
+                }
+                scale={fit}
+                style={st}
+              />
+            );
+          });
+        });
+        return out;
+      })()}
     </group>
   );
 }
@@ -370,39 +636,44 @@ function FrontCounter({
             >
               {sec.label}
             </Text>
-            {/* Hộp thuốc xếp dynamic: 2 cột × n hàng để hiện hết toàn bộ thuốc của ngăn.
-                Scale nhỏ lại (0.6) để vừa khoảng hẹp + không bị chồng vào nhau. */}
-            {drugs.map((drug, idx, arr) => {
-              const slotIdx = picked.indexOf(drug.id);
-              const wt = pickSlotPos(slotIdx === -1 ? 0 : slotIdx);
+            {/* Quầy ngang: pack 2 cột × n hàng; mỗi SKU stack 2-3 hộp;
+                box scale 0.65 cho vừa kích thước ngăn nhỏ. */}
+            {(() => {
+              const CTR_SCALE = 0.65;
               const COLS = 2;
-              const rows = Math.max(1, Math.ceil(arr.length / COLS));
-              const col = idx % COLS;
-              const row = Math.floor(idx / COLS);
-              // Khoảng cách cột: 0.55 × section width → cách nhau ~0.19 (box scale 0.6 → 0.10 wide)
-              const dx = (col - (COLS - 1) / 2) * (SECTION_W * 0.55);
-              // Khoảng cách hàng: chia đều COUNTER_D × 0.85, có giới hạn min/max
-              const dzStep = Math.min(0.11, Math.max(0.08, (COUNTER_D * 0.85) / Math.max(rows, 1)));
-              const dz = (row - (rows - 1) / 2) * dzStep;
-              return (
-                <DrugBox
-                  key={drug.id}
-                  drug={drug}
-                  shelfPos={[dx, COUNTER_H + 0.072, dz]}
-                  scale={0.6}
-                  picked={picked.includes(drug.id)}
-                  label={labels[drug.id]}
-                  targetPos={[wt[0] - sectionCx, wt[1], wt[2] - COUNTER_Z]}
-                  onPick={() =>
-                    onPick({
-                      id: drug.id,
-                      isAntibiotic: drug.isAntibiotic,
-                      isHazardPregnancy: drug.isHazardPregnancy
-                    })
-                  }
-                />
-              );
-            })}
+              const rows = Math.max(1, Math.ceil(drugs.length / COLS));
+              const colPitch = SECTION_W * 0.50; // 2 cột cách nhau ~nửa section width
+              const dzStep = Math.min(0.12, Math.max(0.085, (COUNTER_D * 0.82) / Math.max(rows, 1)));
+              return drugs.map((drug, idx) => {
+                const slotIdx = picked.indexOf(drug.id);
+                const wt = pickSlotPos(slotIdx === -1 ? 0 : slotIdx);
+                const col = idx % COLS;
+                const row = Math.floor(idx / COLS);
+                const dx = (col - (COLS - 1) / 2) * colPitch;
+                const dz = (row - (rows - 1) / 2) * dzStep;
+                const st = getBoxStyle(drug);
+                const baseY = COUNTER_H + (st.h * CTR_SCALE) / 2 + 0.002;
+                return (
+                  <DrugStack
+                    key={drug.id}
+                    drug={drug}
+                    shelfPos={[dx, baseY, dz]}
+                    scale={CTR_SCALE}
+                    style={st}
+                    picked={picked.includes(drug.id)}
+                    label={labels[drug.id]}
+                    targetPos={[wt[0] - sectionCx, wt[1], wt[2] - COUNTER_Z]}
+                    onPick={() =>
+                      onPick({
+                        id: drug.id,
+                        isAntibiotic: drug.isAntibiotic,
+                        isHazardPregnancy: drug.isHazardPregnancy
+                      })
+                    }
+                  />
+                );
+              });
+            })()}
           </group>
         );
       })}
