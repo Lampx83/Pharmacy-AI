@@ -244,6 +244,24 @@ const DEVICE_DIMS = [
   { w: 0.090, h: 0.150, d: 0.060 }
 ];
 
+/* Mỗi SKU lấy 1 màu accent + 1 màu nền pastel từ palette (deterministic theo SKU
+   hash) — để hộp thuốc cạnh nhau trong cùng tủ có nhãn nhiều màu khác nhau,
+   giống nhà thuốc thật. */
+const DRUG_ACCENT_PALETTE: ReadonlyArray<string> = [
+  "#dc2626", "#ea580c", "#d97706", "#ca8a04", "#65a30d",
+  "#16a34a", "#059669", "#0d9488", "#0891b2", "#0284c7",
+  "#2563eb", "#4f46e5", "#7c3aed", "#9333ea", "#c026d3",
+  "#db2777", "#e11d48", "#b45309", "#92400e", "#155e75",
+  "#1e40af", "#3730a3", "#581c87", "#831843", "#7f1d1d"
+];
+function getDrugColors(drug: DrugSpec): { accent: string; body: string } {
+  const h = hashSku(drug.sku);
+  const accent = DRUG_ACCENT_PALETTE[h % DRUG_ACCENT_PALETTE.length];
+  // body = phiên bản rất nhạt của accent → pastel
+  const body = lightenHex(accent, 0.85);
+  return { accent, body };
+}
+
 function getBoxStyle(drug: DrugSpec): BoxStyle {
   const h = hashSku(drug.sku);
   const f = drug.form || "";
@@ -314,9 +332,12 @@ function DrugBox({
   const nameSize   = Math.min(0.022, w * 0.20);
   const strSize    = Math.min(0.018, w * 0.16);
   const skuSize    = Math.min(0.014, w * 0.13);
-  const accent = drug.groupAccent;
+  // Mỗi SKU một bộ màu riêng (deterministic theo SKU hash) thay vì dùng
+  // groupAccent / bodyColor chung của cả nhóm — kệ thuốc nhiều màu hơn.
+  const drugColors = getDrugColors(drug);
+  const accent = drugColors.accent;
   const accentLight = lightenHex(accent, 0.35);
-  const bodyColor = hovered ? "#fef9c3" : drug.bodyColor;
+  const bodyColor = hovered ? "#fef9c3" : drugColors.body;
   const textDark = "#0f172a";
 
   // Build face decoration depending on variant.
