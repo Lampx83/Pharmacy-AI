@@ -45,6 +45,10 @@ useGLTF.preload("/models/sofa.glb");
 useGLTF.preload("/models/scissors.glb");
 useGLTF.preload("/models/tape.glb");
 useGLTF.preload("/models/notepad.glb");
+useGLTF.preload("/models/pen.glb");
+useGLTF.preload("/models/barcode_scanner.glb");
+useGLTF.preload("/models/receipt_printer.glb");
+useGLTF.preload("/models/book.glb");
 
 interface Props {
   picked: string[];
@@ -91,10 +95,10 @@ const COUNTER_SECTIONS = FRONT_SECTIONS.length;
    - giữa      ⇢ khay ra lẻ + nhãn HDSD
    - bên phải  ⇢ máy POS hai màn hình */
 const DISPLAY_LEFT_X = -COUNTER_W / 2 + 0.25;     // mép trái khu trưng bày
-const DISPLAY_RIGHT_X = -0.4;                      // mép phải khu trưng bày
+const DISPLAY_RIGHT_X = -0.8;                      // mép phải — gọn lại, chừa chỗ cho khay tools
 const DISPLAY_TOTAL_W = DISPLAY_RIGHT_X - DISPLAY_LEFT_X;
 const SECTION_W = DISPLAY_TOTAL_W / COUNTER_SECTIONS;
-const TOOLTRAY_X = 0.1;
+const TOOLTRAY_X = 0.2;
 const POS_X = 1.45;
 
 const SHELVES_PER_CAB = 5;
@@ -358,8 +362,9 @@ function FrontCounter({
               const wt = pickSlotPos(slotIdx === -1 ? 0 : slotIdx);
               const col = idx % 2;
               const row = Math.floor(idx / 2);
-              const dx = (col - 0.5) * (SECTION_W * 0.45);
-              const dz = (row - 0.5) * (COUNTER_D * 0.42);
+              // Gọn lại: hộp xếp sát hơn, chiếm 0.32 thay vì 0.45 chiều rộng section
+              const dx = (col - 0.5) * (SECTION_W * 0.32);
+              const dz = (row - 0.5) * (COUNTER_D * 0.32);
               return (
                 <DrugBox
                   key={drug.id}
@@ -537,32 +542,130 @@ function PosComputer({ onClick }: { onClick: () => void }) {
   );
 }
 
-/* ============= Khay nhãn HDSD ============= */
+/* ============= Khay dụng cụ + ra lẻ thuốc ============= */
 function ToolTray({ onClick }: { onClick: () => void }) {
   const [hovered, setHovered] = useState(false);
+  const TW = 0.95; // tray width
+  const TD = 0.42; // tray depth
   return (
-    <group
-      position={[TOOLTRAY_X, COUNTER_H + 0.04, COUNTER_Z - 0.05]}
-      onPointerOver={() => setHovered(true)}
-      onPointerOut={() => setHovered(false)}
-      onClick={onClick}
-    >
-      <mesh castShadow>
-        <boxGeometry args={[0.5, 0.02, 0.35]} />
-        <meshStandardMaterial color={hovered ? "#fde68a" : "#e7e5e4"} />
-      </mesh>
-      <Text position={[0, 0.02, -0.1]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.038} color="#1f2937">
-        KHAY RA LẺ + NHÃN HDSD
-      </Text>
-      <Text position={[0, 0.02, 0.07]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.026} color="#475569">
-        click để soạn nhãn
-      </Text>
-      {/* Kéo / băng keo / xấp nhãn — model GLB từ poly.pizza (CC0) */}
+    <group position={[TOOLTRAY_X, COUNTER_H + 0.04, COUNTER_Z - 0.05]}>
+      {/* === Khay nền — click vào để soạn nhãn HDSD === */}
+      <group
+        onPointerOver={() => setHovered(true)}
+        onPointerOut={() => setHovered(false)}
+        onClick={onClick}
+      >
+        <mesh castShadow>
+          <boxGeometry args={[TW, 0.02, TD]} />
+          <meshStandardMaterial color={hovered ? "#fde68a" : "#e7e5e4"} />
+        </mesh>
+        <Text position={[0, 0.02, -0.18]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.034} color="#1f2937">
+          KHAY DỤNG CỤ + RA LẺ + NHÃN HDSD
+        </Text>
+        <Text position={[0, 0.02, -0.14]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.022} color="#475569">
+          click để soạn nhãn
+        </Text>
+      </group>
+
+      {/* === Hộp RA LẺ thuốc (pill counter) với gạt chia === */}
+      <group position={[-0.36, 0.012, 0.05]}>
+        {/* khay ra lẻ — đáy lõm */}
+        <mesh castShadow>
+          <boxGeometry args={[0.2, 0.025, 0.16]} />
+          <meshStandardMaterial color="#fef3c7" roughness={0.5} />
+        </mesh>
+        {/* viền khay */}
+        {[
+          [0, 0.02, -0.08, 0.2, 0.04, 0.01],
+          [0, 0.02, 0.08, 0.2, 0.04, 0.01],
+          [-0.1, 0.02, 0, 0.01, 0.04, 0.16],
+          [0.1, 0.02, 0, 0.01, 0.04, 0.16]
+        ].map((p, i) => (
+          <mesh key={i} position={[p[0], p[1], p[2]]}>
+            <boxGeometry args={[p[3], p[4], p[5]]} />
+            <meshStandardMaterial color="#f59e0b" />
+          </mesh>
+        ))}
+        {/* gạt chia (slide divider) — tách khay làm 2 nửa */}
+        <mesh position={[0, 0.025, 0]} castShadow>
+          <boxGeometry args={[0.005, 0.04, 0.14]} />
+          <meshStandardMaterial color="#0f172a" />
+        </mesh>
+        {/* vài viên thuốc giả */}
+        {[
+          [-0.05, -0.04],
+          [-0.03, 0.02],
+          [0.04, -0.03],
+          [0.06, 0.05]
+        ].map(([dx, dz], i) => (
+          <mesh key={i} position={[dx, 0.022, dz]} castShadow>
+            <cylinderGeometry args={[0.012, 0.012, 0.006, 14]} />
+            <meshStandardMaterial color={i % 2 === 0 ? "#ffffff" : "#fbbf24"} />
+          </mesh>
+        ))}
+        <Text position={[0, 0.045, -0.105]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.018} color="#7c2d12">
+          HỘP RA LẺ
+        </Text>
+      </group>
+
+      {/* === Bao bì ra lẻ: 3 túi giấy màu trắng / vàng / hồng === */}
+      {[
+        { color: "#ffffff", outline: "#cbd5e1", label: "Sáng", dx: -0.13 },
+        { color: "#fde68a", outline: "#d97706", label: "Trưa", dx: -0.02 },
+        { color: "#fbcfe8", outline: "#be185d", label: "Tối", dx: 0.09 }
+      ].map((bag, i) => (
+        <group key={i} position={[bag.dx, 0.012, -0.05]} rotation={[0, i * 0.08 - 0.1, 0]}>
+          <mesh castShadow>
+            <boxGeometry args={[0.08, 0.022, 0.11]} />
+            <meshStandardMaterial color={bag.color} roughness={0.7} />
+          </mesh>
+          {/* viền dán mép trên */}
+          <mesh position={[0, 0.013, -0.05]}>
+            <boxGeometry args={[0.08, 0.004, 0.012]} />
+            <meshStandardMaterial color={bag.outline} />
+          </mesh>
+          <Text position={[0, 0.024, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.018} color="#0f172a">
+            {bag.label}
+          </Text>
+        </group>
+      ))}
+
+      {/* === Túi zip kín khí (sealed plastic bag) === */}
+      <group position={[0.18, 0.012, -0.05]} rotation={[0, 0.15, 0]}>
+        <mesh castShadow>
+          <boxGeometry args={[0.09, 0.014, 0.11]} />
+          <meshStandardMaterial color="#cffafe" roughness={0.25} metalness={0.1} transparent opacity={0.78} />
+        </mesh>
+        {/* phần zip kẻ sọc */}
+        <mesh position={[0, 0.009, -0.05]}>
+          <boxGeometry args={[0.085, 0.004, 0.008]} />
+          <meshStandardMaterial color="#0891b2" />
+        </mesh>
+        <Text position={[0, 0.016, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.016} color="#0e7490">
+          ZIP-LOCK
+        </Text>
+      </group>
+
+      {/* === Kéo / Băng keo / Bút / Notepad — model GLB từ poly.pizza (CC0) === */}
       <Suspense fallback={null}>
-        <TrayTool url="/models/scissors.glb" position={[-0.17, 0.012, 0.1]} rotationY={Math.PI / 5} targetSize={0.18} />
-        <TrayTool url="/models/tape.glb" position={[0.0, 0.012, 0.1]} rotationY={-Math.PI / 6} targetSize={0.14} />
-        <TrayTool url="/models/notepad.glb" position={[0.17, 0.012, 0.1]} rotationY={Math.PI / 12} targetSize={0.14} />
+        <TrayTool url="/models/scissors.glb" position={[0.05, 0.012, 0.12]} rotationY={Math.PI / 4} targetSize={0.16} />
+        <TrayTool url="/models/tape.glb" position={[0.22, 0.012, 0.12]} rotationY={-Math.PI / 6} targetSize={0.11} />
+        <TrayTool url="/models/pen.glb" position={[-0.1, 0.012, 0.13]} rotationY={Math.PI / 2.5} targetSize={0.14} />
+        <TrayTool url="/models/notepad.glb" position={[0.38, 0.012, 0.05]} rotationY={Math.PI / 12} targetSize={0.16} />
       </Suspense>
+
+      {/* === Giấy dính ghi HDSD — xấp nhãn dán dùng ngay === */}
+      <group position={[0.38, 0.012, -0.08]} rotation={[0, 0.1, 0]}>
+        {[0, 1, 2, 3].map((i) => (
+          <mesh key={i} position={[0, 0.003 + i * 0.0035, 0]} castShadow>
+            <boxGeometry args={[0.09, 0.003, 0.06]} />
+            <meshStandardMaterial color={i === 3 ? "#fef9c3" : "#ffffff"} />
+          </mesh>
+        ))}
+        <Text position={[0, 0.024, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.013} color="#0f172a">
+          HDSD
+        </Text>
+      </group>
     </group>
   );
 }
@@ -1194,6 +1297,44 @@ export default function GppScene({
         <PickTray pickedCount={picked.length} />
         <ToolTray onClick={onOpenLabelEditor} />
         <PosComputer onClick={onOpenPos} />
+
+        {/* === Máy quét barcode + máy in hoá đơn cạnh POS === */}
+        <Suspense fallback={null}>
+          <TrayTool
+            url="/models/barcode_scanner.glb"
+            position={[0.85, COUNTER_H + 0.05, COUNTER_Z - 0.15]}
+            rotationY={-Math.PI / 5}
+            targetSize={0.22}
+          />
+          <TrayTool
+            url="/models/receipt_printer.glb"
+            position={[1.0, COUNTER_H + 0.05, COUNTER_Z + 0.18]}
+            rotationY={Math.PI}
+            targetSize={0.24}
+          />
+        </Suspense>
+
+        {/* === 2 tài liệu tra cứu: Dược thư 2018 + MIMS Pharmacy — đặt ở khoảng trống giữa khu trưng bày và khay === */}
+        <Suspense fallback={null}>
+          <TrayTool
+            url="/models/book.glb"
+            position={[-0.62, COUNTER_H + 0.05, COUNTER_Z - 0.2]}
+            rotationY={Math.PI / 2.4}
+            targetSize={0.22}
+          />
+          <TrayTool
+            url="/models/book.glb"
+            position={[-0.55, COUNTER_H + 0.05, COUNTER_Z + 0.05]}
+            rotationY={Math.PI / 2.6}
+            targetSize={0.22}
+          />
+        </Suspense>
+        {/* nhãn sách */}
+        <Billboard position={[-0.58, COUNTER_H + 0.32, COUNTER_Z - 0.08]}>
+          <Text fontSize={0.04} color="#0f172a" anchorX="center" outlineColor="#ffffff" outlineWidth={0.005}>
+            📚 Dược thư 2018 · MIMS Pharmacy
+          </Text>
+        </Billboard>
 
         {/* === Tủ lạnh cửa kín — kê sát tường trái, mặt cửa quay vào trong (+x) === */}
         <ClosedFridge position={[-ROOM_W / 2 + 0.36, 0, COUNTER_Z + 0.1]} rotationY={Math.PI / 2} />
