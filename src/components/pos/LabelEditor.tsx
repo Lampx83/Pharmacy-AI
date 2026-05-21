@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { DRUGS } from "@/lib/catalog/gpp";
+import { ALL_DRUGS as DRUGS } from "@/lib/catalog/gpp";
 import {
   TIMING_LABEL,
   type HdsdLabel,

@@ -13,8 +13,14 @@ import type { ScenarioSpec } from "@/lib/segue/scenarios";
 import ScorePanel from "./ScorePanel";
 import PosTerminal, { type InvoicePayload } from "./pos/PosTerminal";
 import LabelEditor from "./pos/LabelEditor";
+import {
+  PrescriptionModal,
+  DoctorPhoneModal,
+  SeniorPharmacistModal,
+  DEMO_PRESCRIPTION
+} from "./pos/PharmacistTools";
 import type { HdsdLabel } from "@/lib/labels/hdsd";
-import { DRUGS } from "@/lib/catalog/gpp";
+import { ALL_DRUGS as DRUGS } from "@/lib/catalog/gpp";
 
 const GppScene = dynamic(() => import("./scenes/GppScene"), { ssr: false });
 const HospitalScene = dynamic(() => import("./scenes/HospitalScene"), { ssr: false });
@@ -37,6 +43,11 @@ export default function SimulationClient({ moduleId }: { moduleId: ModuleId }) {
   const [labelEditorOpen, setLabelEditorOpen] = useState(false);
   const [pendingLabel, setPendingLabel] = useState<HdsdLabel | null>(null);
   const [mouse, setMouse] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // GPP — Phase C: prescription, doctor phone, senior pharmacist
+  const [rxOpen, setRxOpen] = useState(false);
+  const [docPhoneOpen, setDocPhoneOpen] = useState(false);
+  const [seniorOpen, setSeniorOpen] = useState(false);
+  const [seniorActive, setSeniorActive] = useState(false);
   // Hospital scene state
   const [scanned, setScanned] = useState(false);
   const [hisOpen, setHisOpen] = useState(false);
@@ -273,6 +284,36 @@ export default function SimulationClient({ moduleId }: { moduleId: ModuleId }) {
             }}
           />
         )}
+
+        {moduleId === "gpp" && (
+          <PrescriptionModal
+            open={rxOpen}
+            rx={DEMO_PRESCRIPTION}
+            onClose={() => setRxOpen(false)}
+          />
+        )}
+        {moduleId === "gpp" && (
+          <DoctorPhoneModal
+            open={docPhoneOpen}
+            doctorPhone={DEMO_PRESCRIPTION.doctorPhone}
+            doctorName={DEMO_PRESCRIPTION.doctorName}
+            onClose={() => setDocPhoneOpen(false)}
+            onLog={(info) =>
+              postAction("call_doctor", {
+                dialed: info.dialed,
+                turns: info.messages.length
+              })
+            }
+          />
+        )}
+        {moduleId === "gpp" && (
+          <SeniorPharmacistModal
+            open={seniorOpen}
+            active={seniorActive}
+            onActivate={() => setSeniorActive((a) => !a)}
+            onClose={() => setSeniorOpen(false)}
+          />
+        )}
       </div>
 
       <div className="sidepanel" style={{ display: panelOpen ? "flex" : "none", fontSize: 12 }}>
@@ -368,8 +409,20 @@ export default function SimulationClient({ moduleId }: { moduleId: ModuleId }) {
         {moduleId === "gpp" && (
           <div className="card" style={{ fontSize: 13 }}>
             <h3>Phần mềm POS</h3>
-            <div className="row" style={{ alignItems: "center" }}>
+            <div className="row" style={{ alignItems: "center", flexWrap: "wrap" }}>
               <button onClick={() => setPosOpen(true)}>💻 Mở phần mềm bán hàng</button>
+              <button onClick={() => setRxOpen(true)}>📋 Xem đơn thuốc</button>
+              <button onClick={() => setDocPhoneOpen(true)}>📞 Gọi bác sĩ</button>
+              <button
+                onClick={() => setSeniorOpen(true)}
+                style={
+                  seniorActive
+                    ? { background: "#0f766e", color: "#fff", fontWeight: 700 }
+                    : undefined
+                }
+              >
+                🧑‍🏫 DS đại học {seniorActive ? "(đang bật)" : ""}
+              </button>
               <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
                 <input
                   type="checkbox"
