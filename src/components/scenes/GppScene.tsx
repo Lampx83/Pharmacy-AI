@@ -789,24 +789,55 @@ function FrontCounter({
   );
 }
 
-/* ============= Khay đựng thuốc ============= */
-const PICK_TRAY_BASE: [number, number, number] = [-0.5, COUNTER_H + 0.04, COUNTER_Z + 0.7];
+/* ============= Khay bán hàng — nhỏ gọn, đặt trực tiếp lên mặt quầy ============= */
+const PICK_TRAY_W = 0.62;     // bề rộng khay
+const PICK_TRAY_D = 0.34;     // độ sâu khay
+const PICK_TRAY_T = 0.022;    // chiều dày khay
+const PICK_TRAY_RIM = 0.01;   // viền nhỏ quanh khay
+// Tâm khay (world coords) — đặt giữa quầy về phía trước, sát mép quầy
+const PICK_TRAY_CX = -0.55;
+const PICK_TRAY_CZ = COUNTER_Z + 0.20;   // ~ 0.20 m phía trước trục quầy
+const PICK_TRAY_TOP_Y = COUNTER_H + PICK_TRAY_T;   // mặt trên khay
+const PICK_TRAY_CY = COUNTER_H + PICK_TRAY_T / 2;  // tâm khối khay (đáy = COUNTER_H)
+// Vị trí đặt thuốc trên khay: 4 cột × 2 hàng
 function pickSlotPos(idx: number): [number, number, number] {
-  const col = idx % 4;
-  const row = Math.floor(idx / 4);
-  return [PICK_TRAY_BASE[0] + col * 0.28, PICK_TRAY_BASE[1] + 0.15, PICK_TRAY_BASE[2] + row * 0.22];
+  const COLS = 4;
+  const col = idx % COLS;
+  const row = Math.floor(idx / COLS);
+  const colPitch = (PICK_TRAY_W - 0.10) / (COLS - 1); // chừa lề
+  const rowPitch = 0.14;
+  const x = PICK_TRAY_CX - (PICK_TRAY_W - 0.10) / 2 + col * colPitch;
+  // tâm hộp thuốc cao hơn mặt khay ~0.08 m → đáy hộp tiếp mặt khay với hộp h≈0.16
+  const y = PICK_TRAY_TOP_Y + 0.08;
+  const z = PICK_TRAY_CZ - rowPitch / 2 + row * rowPitch;
+  return [x, y, z];
 }
 function PickTray({ pickedCount }: { pickedCount: number }) {
   return (
-    <group position={[PICK_TRAY_BASE[0] + 0.42, PICK_TRAY_BASE[1] - 0.05, PICK_TRAY_BASE[2] + 0.15]}>
-      <mesh receiveShadow>
-        <boxGeometry args={[1.3, 0.04, 0.6]} />
-        <meshStandardMaterial color="#e2e8f0" roughness={0.6} />
+    <group position={[PICK_TRAY_CX, PICK_TRAY_CY, PICK_TRAY_CZ]}>
+      {/* Mặt khay (mỏng, đáy chạm mặt quầy) */}
+      <mesh receiveShadow castShadow>
+        <boxGeometry args={[PICK_TRAY_W, PICK_TRAY_T, PICK_TRAY_D]} />
+        <meshStandardMaterial color="#e2e8f0" roughness={0.55} metalness={0.05} />
       </mesh>
+      {/* Viền 4 cạnh — gờ thấp để giữ thuốc khỏi trượt */}
+      {[
+        // [x, y, z, w, h, d]
+        [0, PICK_TRAY_T / 2 + 0.005, -PICK_TRAY_D / 2 + 0.005, PICK_TRAY_W, 0.012, PICK_TRAY_RIM],
+        [0, PICK_TRAY_T / 2 + 0.005,  PICK_TRAY_D / 2 - 0.005, PICK_TRAY_W, 0.012, PICK_TRAY_RIM],
+        [-PICK_TRAY_W / 2 + 0.005, PICK_TRAY_T / 2 + 0.005, 0, PICK_TRAY_RIM, 0.012, PICK_TRAY_D],
+        [ PICK_TRAY_W / 2 - 0.005, PICK_TRAY_T / 2 + 0.005, 0, PICK_TRAY_RIM, 0.012, PICK_TRAY_D]
+      ].map((p, i) => (
+        <mesh key={i} position={[p[0], p[1], p[2]]} castShadow>
+          <boxGeometry args={[p[3], p[4], p[5]]} />
+          <meshStandardMaterial color="#94a3b8" roughness={0.5} />
+        </mesh>
+      ))}
+      {/* Nhãn nhỏ trên mặt khay */}
       <Text
-        position={[0, 0.025, -0.28]}
+        position={[0, PICK_TRAY_T / 2 + 0.002, -PICK_TRAY_D / 2 + 0.045]}
         rotation={[-Math.PI / 2, 0, 0]}
-        fontSize={0.035}
+        fontSize={0.022}
         color="#475569"
         anchorX="center"
       >
