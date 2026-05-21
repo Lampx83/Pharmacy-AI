@@ -183,8 +183,9 @@ function CameraEye({
   useFrame(({ clock }) => {
     const g = groupRef.current;
     if (!g) return;
-    // bobbing nhẹ
-    g.position.y = position[1] + Math.sin(clock.elapsedTime * 2.4) * 0.025;
+    // bobbing nhẹ — chỉ offset trong local space của Billboard, KHÔNG cộng position[1]
+    // (cộng position[1] sẽ đẩy inner group lên 2× chiều cao, mắt vượt trần phòng).
+    g.position.y = Math.sin(clock.elapsedTime * 2.4) * 0.025;
     // scale phồng khi hover
     const target = hovered ? 1.15 : 1.0;
     g.scale.x += (target - g.scale.x) * 0.2;
